@@ -1,4 +1,4 @@
-Bounded nonlinear least squares optimization
+Bounded Nonlinear Least-Squares Optimization
 --------------------------------------------
 
 This repository contains algorithms I'm preparing for scipy as part of my GSoC 2015 work. In order to use: clone this repository and add the path to the folder to PYTHONPATH. Tested in Python 3.4 and 2.7 with numpy 1.9.2 and scipy 0.15.1.
@@ -19,10 +19,10 @@ Run benchmarks from `benchmarks/run_benchmarks.py`. For the default usage run
 python run_benchmarks.py
 ```
 
-The following example command run only bounded problems with custom tolerance settings and writes the result into file: 
+The following example command run only bounded problems with custom tolerance settings and writes the result into a file: 
 
 ```
 python run_benchmarks.py report.txt -b -ftol 1e-8 -gtol 1e-5
 ```
 
-For more information about this benchmarks read my [post](https://nmayorov.wordpress.com/2015/06/19/algorithm-benchmarks/). Note, that your results will be somewhat different to ones reported in the blog post, because I made small adjustments to algorithms (and will keep making them).
+For more information about this benchmarks read my [post](https://nmayorov.wordpress.com/2015/06/19/algorithm-benchmarks/). Note, that your results will be somewhat different to ones reported in the blog post, because I made small adjustments to the algorithms (and will keep making them).
