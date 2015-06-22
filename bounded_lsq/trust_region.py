@@ -68,28 +68,18 @@ def solve_lsq_trust_region(n, m, uf, s, V, Delta, initial_alpha=None,
         Number of residuals.
     uf : array
         Should be computed as U.T.dot(f).
-
     s : array
         Singular values of J.
-
     V : array
         Transpose of VT.
-
     Delta : float
         A trust-region radius.
-
-    undetermined : bool
-        Tells that we solve undetermined system. Unfortunately cannot be
-        determined from other parameters, so pass ``m < n`` as this parameter.
-
     initial_alpha : float, optional
         The initial guess for alpha, which might be available from a
         previous iteration.
-
     rtol : float, optional
         The stopping tolerance for the root-finding procedure. Namely,
         the root `alpha` must satisfy ``|p(alpha) - Delta| < rtol * Delta``.
-
     max_iter : int, optional
         The maximum allowed number of iterations for the root-finding
         procedure.
@@ -98,11 +88,9 @@ def solve_lsq_trust_region(n, m, uf, s, V, Delta, initial_alpha=None,
     -------
     p : array, shape (n,)
         The solution of a trust region problem
-
     alpha : float
         The corresponding scalar parameter (sometimes called
         Levenberg-Marquardt parameter).
-
     n_iter : int
         The number of iterations made by root-finding procedure. Zero means
         that Gauss-Newton step was selected as the solution.
