@@ -68,7 +68,7 @@ def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
 
 
 def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
-           max_iter=300, scaling=1.0):
+           max_nfev=1000, scaling=1.0):
     """Minimize the sum of squares with bounds on independent variables
     by rectangular trust-region dogleg algorithm.
 
@@ -94,8 +94,8 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     gtol : float, optional
         Tolerance for termination by the norm of gradient with respect
         to variables which isn't on the boundary in the final solution.
-    max_iter : int, optional
-        Max number of iterations before the termination.
+    max_nfev : int, optional
+        Max number of function evaluations before the termination.
     scaling : array-like or 'auto', optional
         Determines scaling of the variables. A bigger value for some variable
         means that this variable can change stronger during iterations,
@@ -119,7 +119,6 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     nfev = 1
     f = fun(x0)
     J = jac(x0)
-    m, n = J.shape
 
     if scaling == 'auto':
         J_norm = np.linalg.norm(J, axis=0)
@@ -139,7 +138,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     x = x0.copy()
     step = np.empty_like(x0)
     obj_val = np.dot(f, f)
-    for it in range(max_iter):
+    while nfev < max_nfev:
         g = J.T.dot(f)
 
         if scaling == 'auto':
@@ -166,7 +165,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         cauchy_step = -np.dot(g_free, g_free) / np.dot(Jg, Jg) * g_free
 
         actual_change = 1.0
-        while actual_change > 0:
+        while nfev < max_nfev and actual_change > 0:
             tr_bounds = Delta * scale
             if tr_bounds.ndim == 1:
                 tr_bounds = tr_bounds[free_set]

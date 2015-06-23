@@ -183,7 +183,7 @@ def find_gradient_step(x, J_h, diag_h, g_h, d, Delta, l, u, theta):
 
 
 def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
-        max_iter=300, scaling=1.0):
+        max_nfev=1000, scaling=1.0):
     """Minimize the sum of squares with bounds on independent variables
     by Trust Region Reflective algorithm.
 
@@ -208,8 +208,8 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         Tolerance for termination by the change of the independent variables.
     gtol : float, optional
         Tolerance for termination by the norm of scaled gradient.
-    max_iter : int, optional
-        Max number of iterations before the termination.
+    max_nfev : int, optional
+        Max number of function evaluations before the termination.
     scaling : array-like or 'auto', optional
         Determines scaling of the variables. A bigger value for some variable
         means that this variable can change stronger during iterations,
@@ -256,7 +256,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     obj_value = np.dot(f, f)
     alpha = 0.0
 
-    for it in range(max_iter):
+    while nfev < max_nfev:
         if scaling == 'auto':
             J_norm = np.linalg.norm(J, axis=0)
             with np.errstate(divide='ignore'):
@@ -287,7 +287,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         uf = U.T.dot(f_extended)
 
         actual_change = 1.0
-        while actual_change > 0:
+        while nfev < max_nfev and actual_change > 0:
             p_h, alpha, n_iter = solve_lsq_trust_region(
                 n, m, uf, s, V, Delta, initial_alpha=alpha)
             p = d * p_h

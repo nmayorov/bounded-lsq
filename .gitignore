@@ -62,3 +62,6 @@ target/
 
 #Test files
 *.txt
+
+#Temporary py files
+benchmarks/run_single.py
