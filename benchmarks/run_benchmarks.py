@@ -141,10 +141,10 @@ def main():
         args.u = True
         args.b = True
     if args.u:
-        run_benchmark(u, ftol=args.ftol, xtol=args.ftol, gtol=args.gtol,
+        run_benchmark(u, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
                       benchmark_name="Unbounded problems")
     if args.b:
-        run_benchmark(b, ftol=args.ftol, xtol=args.ftol, gtol=args.gtol,
+        run_benchmark(b, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
                       methods=["dogbox", "trf", "leastsq", "l-bfgs-b"],
                       benchmark_name="Bounded problems")
 
