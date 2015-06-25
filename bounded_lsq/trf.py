@@ -175,7 +175,8 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     by Trust Region Reflective algorithm [1]_.
 
     Let f(x) maps from R^n to R^m, the function finds a local minimum of
-    ``F(x) = ||f(x)||**2 = sum(f_i(x)**2, i = 1, ...,m) s. t. l <= x <= u``.
+    F(x) = ||f(x)||**2 = sum(f_i(x)**2, i = 1, ...,m),
+    subject to box constraints l <= x <= u
 
     Parameters
     ----------
@@ -359,7 +360,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
             qp_values = evaluate_quadratic_function(J_h, diag_h, g_h, steps)
             i = np.argmin(qp_values)
             step_h = steps[i]
-            predicted_reduction = -qp_values[i]
+            predicted_reduction = -2 * qp_values[i]
 
             step = d * step_h
             x_new = make_strictly_feasible(x + step, l, u)
@@ -372,8 +373,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
             correction = np.dot(step_h * diag_h, step_h)
 
             if predicted_reduction > 0:
-                ratio = (0.5 * (actual_reduction - correction) /
-                         predicted_reduction)
+                ratio = (actual_reduction - correction) / predicted_reduction
             else:
                 ratio = 0
 
