@@ -216,11 +216,12 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
         Determines scaling of the variables. A bigger value for some variable
         means that this variable can change stronger during iterations,
         compared to other variables. A scalar value won't affect the algorithm
-        (except maybe fixing/introducing numerical problems). If 'auto', then
-        scaling is inversely proportional to the norm of Jacobian columns.
-        This concept is irrelevant to scaling suggested in [1]_ for handling
-        the bounds, from the experience it is generally not recommended to use
-        ''scaling=auto`` in bounded problems.
+        (except maybe fixing/introducing numerical problems and changing
+        termination criteria). If 'auto', then scaling is inversely
+        proportional to the norm of Jacobian columns. This concept is
+        irrelevant to scaling suggested in [1]_ for handling the bounds,
+        from the experience it is generally not recommended to use
+        ``scaling=auto`` in bounded problems.
 
     Returns
     -------
