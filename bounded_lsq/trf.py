@@ -172,10 +172,10 @@ def find_gradient_step(x, J_h, diag_h, g_h, d, Delta, l, u, theta):
 def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
         gtol=EPS**0.5, max_nfev=None, scaling=1.0):
     """Minimize the sum of squares with bounds on independent variables
-    by Trust Region Reflective algorithm.
+    by Trust Region Reflective algorithm [1]_.
 
     Let f(x) maps from R^n to R^m, the function finds a local minimum of
-    ``||f(x)||**2 = sum(f_i(x)**2, i = 1, ...,m) s. t. l <= x <= u``.
+    ``F(x) = ||f(x)||**2 = sum(f_i(x)**2, i = 1, ...,m) s. t. l <= x <= u``.
 
     Parameters
     ----------
@@ -188,15 +188,29 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
         Initial guess on the independent variables.
     bounds : tuple of array, optional
         Lower and upper bounds on independent variables. None means that
-        there is no lower/upper bound on any of the variables.
+        there is no lower/upper bound on any of the variables. To disable
+        a bound on an individual variable use np.inf with the appropriate
+        sign.
     ftol : float, optional
         Tolerance for termination by the change of the objective value.
-    xtol : float. optional
+        Default is square root from machine epsilon. The optimization process
+        is stopped when ``dF < ftol * F``, where dF is the change of the
+        objective value in the last iteration.
+    xtol : float, optional
         Tolerance for termination by the change of the independent variables.
+        Default is square root from machine epsilon. The optimization process
+        is stopped when ``norm(dx) < xtol * max(EPS**0.5, norm(x))``,
+        where dx is a step taken in the last iteration and EPS is machine
+        epsilon.
     gtol : float, optional
-        Tolerance for termination by the norm of scaled gradient.
+        Tolerance for termination by the norm of scaled gradient. Default is
+        square root from machine epsilon. The optimization process is stopped
+        when ``norm(g_scaled, ord=np.inf) < gtol``, where ``g_scaled`` is
+        properly scaled gradient to account for the presence of bounds as
+        described in [1]_ and additional scaling imposed by `scaling`
+        parameter (see below).
     max_nfev : None or int, optional
-        Max number of function evaluations before the termination. If None,
+        Maximum number of function evaluations before the termination. If None,
         then it is assigned to 100 * n.
     scaling : array-like or 'auto', optional
         Determines scaling of the variables. A bigger value for some variable
@@ -204,15 +218,51 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
         compared to other variables. A scalar value won't affect the algorithm
         (except maybe fixing/introducing numerical problems). If 'auto', then
         scaling is inversely proportional to the norm of Jacobian columns.
+        This concept is irrelevant to scaling suggested in [1]_ for handling
+        the bounds, from the experience it is generally not recommended to use
+        ''scaling=auto`` in bounded problems.
 
     Returns
     -------
+    OptimizeResult with the following fields defined.
     x : array, shape (n,)
         Found solution.
-    obj_value : float
-        Objective value at the solution.
+    fun : float
+        Sum of squares at the solution.
+    residual : array, shape (m,)
+        Vector of residuals at the solution.
+    jac : array, shape (m, n)
+        Jacobian at the solution.
+    optimality : float
+        Firs-order optimality measure. Uniform norm of scaled gradient. This
+        quantity was compared with `gtol` during iterations.
+    active_mask : array of bool, shape (n,)
+        True means that the corresponding constraint is active at the solution.
+        Might be somewhat arbitrary as the algorithm does strictly feasible
+        iterations, thus `active_mask` is determined with tolerance threshold.
     nfev : int
-        The number of function evaluations performed.
+        Number of function evaluations done.
+    njac : int
+        Number of Jacobian evaluations done.
+    nit : int
+        Number of main iterations done.
+    status : int
+        Reason for algorithm termination:
+            - 0 - maximum number of function evaluations reached.
+            - 1 - `gtol` convergence test is satisfied.
+            - 2 - `ftol` convergence test is satisfied.
+            - 3 - `xtol` convergence test is satisfied.
+    message : string
+        Verbal description of the termination reason.
+    success : int
+        True if one of the convergence criteria is satisfied.
+
+    References
+    ----------
+    .. [1] Branch, M.A., T.F. Coleman, and Y. Li, "A Subspace, Interior, and
+           Conjugate Gradient Method for Large-Scale Bound-Constrained
+           Minimization Problems," SIAM Journal on Scientific Computing,
+           Vol. 21, Number 1, pp 1–23, 1999.
     """
     l, u, feasible = check_bounds(x0, bounds)
     if not feasible:

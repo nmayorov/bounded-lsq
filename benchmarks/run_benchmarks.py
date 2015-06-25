@@ -15,14 +15,16 @@ def run_dogbox(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
     result = dogbox(problem.fun, problem.jac, problem.x0,
                     bounds=problem.bounds, ftol=ftol, gtol=gtol,
                     xtol=xtol, **kwargs)
-    return result.nfev, result.optimality, result.fun, np.sum(result.active)
+    return (result.nfev, result.optimality, result.fun,
+            np.sum(result.active_mask))
 
 
 def run_trf(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
     result = trf(problem.fun, problem.jac, problem.x0,
                  bounds=problem.bounds, ftol=ftol, gtol=gtol,
                  xtol=xtol, **kwargs)
-    return result.nfev, result.optimality, result.fun, np.sum(result.active)
+    return (result.nfev, result.optimality, result.fun,
+            np.sum(result.active_mask))
 
 
 def scipy_bounds(problem):
@@ -62,10 +64,7 @@ def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
     )
     f = problem.fun(x)
     g = problem.grad(x)
-    try:
-        optimality = CL_optimality(x, g, l, u)
-    except:
-        pass
+    optimality = CL_optimality(x, g, l, u)
     active = find_active_constraints(x, l, u)
 
     return info['nfev'], optimality, np.dot(f, f), np.sum(active)

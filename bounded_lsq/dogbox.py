@@ -71,10 +71,10 @@ def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
 def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
            max_nfev=None, scaling=1.0):
     """Minimize the sum of squares with bounds on independent variables
-    by rectangular trust-region dogleg algorithm.
+    by rectangular trust-region dogleg algorithm [1]_.
 
     Let f(x) maps from R^n to R^m, the function finds a local minimum of
-    ``||f(x)||**2 = sum(f_i(x)**2, i = 1, ..., m) s. t. l <= x <= u``.
+    ``F(x) = ||f(x)||**2 = sum(f_i(x)**2, i = 1, ..., m) s. t. l <= x <= u``.
 
     Parameters
     ----------
@@ -90,28 +90,76 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         there is no lower/upper bound on any of the variables.
     ftol : float, optional
         Tolerance for termination by the change of the objective value.
+        Default is square root from machine epsilon. The optimization process
+        is stopped when ``dF < ftol * F``, where dF is a change of the
+        objective value in the last iteration.
     xtol : float. optional
         Tolerance for termination by the change of the independent variables.
+        Default is square root from machine epsilon. The optimization process
+        is stopped when ``Delta < xtol * max(EPS**0.5, norm(scaled_x))``,
+        where Delta is a trust-region radius, scaled_x is a scaled value
+        of x (see `scaling` below), EPS is machine epsilon.
     gtol : float, optional
         Tolerance for termination by the norm of gradient with respect
         to variables which isn't on the boundary in the final solution.
+        Default is square root from machine epsilon. The optimization process
+        is stopped when ``norm(g_scaled, ord=np.inf) < gtol``, where g_scaled
+        is the gradient with respect to scaled variables, see `scaling` below.
+        If all variables reach optimum on the boundary, then g_scaled is
+        effectively assigned to zero and algorithm terminates.
     max_nfev : int, optional
-        Max number of function evaluations before the termination.
+        Maximum number of function evaluations before the termination. If None,
+        then it is assigned to 100 * n.
     scaling : array-like or 'auto', optional
         Determines scaling of the variables. A bigger value for some variable
         means that this variable can change stronger during iterations,
         compared to other variables. A scalar value won't affect the algorithm
-        (except maybe fixing/introducing numerical problems). If 'auto', then
-        scaling is inversely proportional to the norm of Jacobian columns.
+        (except maybe fixing/introducing numerical problems and changing
+        termination criteria). If 'auto', then scaling is inversely
+        proportional to the norm of Jacobian columns.
 
     Returns
     -------
+    OptimizeResult with the following fields defined.
     x : array, shape (n,)
         Found solution.
-    obj_value : float
-        Objective function value at the solution.
+    fun : float
+        Sum of squares at the solution.
+    residual : array, shape (m,)
+        Vector of residuals at the solution.
+    jac : array, shape (m, n)
+        Jacobian at the solution.
+    optimality : float
+        Firs-order optimality measure. Uniform norm of scaled gradient with
+        respect to variables which aren't on the boundary. This quantity was
+        compared with `gtol` during iterations.
+    active_mask : array of bool, shape (n,)
+        True means that the corresponding constraint is active at the solution.
+        Very accurate as the algorithm tracks active constraints during
+        iteration.
     nfev : int
-        The number of function evaluations done.
+        Number of function evaluations done.
+    njac : int
+        Number of Jacobian evaluations done.
+    nit : int
+        Number of main iterations done.
+    status : int
+        Reason for algorithm termination:
+            - 0 - maximum number of function evaluations reached.
+            - 1 - `gtol` convergence test is satisfied.
+            - 2 - `ftol` convergence test is satisfied.
+            - 3 - `xtol` convergence test is satisfied.
+    message : string
+        Verbal description of the termination reason.
+    success : int
+        True if one of the convergence criteria is satisfied.
+
+    References
+    ----------
+    .. [1] C. Voglis and I. E. Lagaris, "A Rectangular Trust Region Dogleg
+           Approach for Unconstrained and Bound Constrained Nonlinear
+           Optimization", WSEAS International Conference on Applied
+           Mathematics, Corfu, Greece, 2004.
     """
     l, u, feasible = check_bounds(x0, bounds)
     if not feasible:
@@ -147,6 +195,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     step = np.empty_like(x0)
     obj_value = np.dot(f, f)
 
+    m, n = J.shape
     if max_nfev is None:
         max_nfev = 100 * n
 
@@ -179,8 +228,9 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
                 termination_status = 1
 
         if termination_status is not None:
-            return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
-                                          nfev, njac, nit, termination_status)
+            return prepare_OptimizeResult(
+                x, f, J, l, u, obj_value, g_norm, nfev, njac, nit,
+                termination_status, active_mask=active_set)
 
         newton_step = lstsq(J_free, -f)[0]
         Jg = J_free.dot(g_free)
@@ -248,4 +298,4 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     x[m] = u[m]
 
     return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm, nfev,
-                                  njac, nit, 0)
+                                  njac, nit, 0, active_mask=active_set)

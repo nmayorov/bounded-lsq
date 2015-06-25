@@ -32,14 +32,17 @@ _TERMINATION_MESSAGES = {
 
 
 def prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
-                           nfev, njac, nit, status):
+                           nfev, njac, nit, status, active_mask=None):
     r = OptimizeResult()
     r.x = x
-    r.residuals = f
+    r.residual = f
     r.jac = J
     r.fun = obj_value
     r.optimality = g_norm
-    r.active = find_active_constraints(x, l, u)
+    if active_mask is None:
+        r.active_mask = find_active_constraints(x, l, u)
+    else:
+        r.active_mask = active_mask
     r.nfev = nfev
     r.njac = njac
     r.nit = nit
