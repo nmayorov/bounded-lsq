@@ -5,45 +5,51 @@ from collections import OrderedDict
 import sys
 
 import numpy as np
-from scipy.optimize import leastsq, fmin_l_bfgs_b
-from bounded_lsq import trf, dogbox, leastsqbound
+from scipy.optimize import fmin_l_bfgs_b
+from bounded_lsq import trf, dogbox, leastsqbound, CL_optimality,\
+    find_active_constraints
 from lsq_problems import extract_lsq_problems
 
 
 def run_dogbox(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
-    x, obj_value, nfev = dogbox(
-        problem.fun, problem.jac, problem.x0,
-        bounds=problem.bounds, ftol=ftol, gtol=gtol, xtol=xtol, **kwargs)
-    return x, obj_value, nfev
+    result = dogbox(problem.fun, problem.jac, problem.x0,
+                    bounds=problem.bounds, ftol=ftol, gtol=gtol,
+                    xtol=xtol, **kwargs)
+    return result.nfev, result.optimality, result.fun, np.sum(result.active)
 
 
 def run_trf(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
-    x, obj_value, nfev = trf(
-        problem.fun, problem.jac, problem.x0,
-        bounds=problem.bounds, ftol=ftol, gtol=gtol, xtol=xtol, **kwargs)
-    return x, obj_value, nfev
+    result = trf(problem.fun, problem.jac, problem.x0,
+                 bounds=problem.bounds, ftol=ftol, gtol=gtol,
+                 xtol=xtol, **kwargs)
+    return result.nfev, result.optimality, result.fun, np.sum(result.active)
 
 
 def scipy_bounds(problem):
     n = problem.x0.shape[0]
-    lb, ub = problem.bounds
-    if lb is None:
-        lb = [None] * n
-    if ub is None:
-        ub = [None] * n
+    l, u = problem.bounds
+    if l is None:
+        l = np.full(n, -np.inf)
+    else:
+        l = np.asarray(l)
+    if u is None:
+        u = np.full(n, np.inf)
+    else:
+        u = np.asarray(u)
+
     bounds = []
-    for l, u in zip(lb, ub):
-        if l == -np.inf:
-            l = None
-        if u == np.inf:
-            u = None
-        bounds.append((l, u))
-    return bounds
+    for li, ui in zip(l, u):
+        if li == -np.inf:
+            li = None
+        if ui == np.inf:
+            ui = None
+        bounds.append((li, ui))
+    return bounds, l, u
 
 
 def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
                       scaling=None, **kwargs):
-    bounds = scipy_bounds(problem)
+    bounds, l, u = scipy_bounds(problem)
 
     if scaling is None:
         diag = np.ones_like(problem.x0)
@@ -55,16 +61,26 @@ def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
         Dfun=problem.jac, ftol=ftol, gtol=gtol, diag=diag, **kwargs
     )
     f = problem.fun(x)
-    return x, np.dot(f, f), info['nfev']
+    g = problem.grad(x)
+    try:
+        optimality = CL_optimality(x, g, l, u)
+    except:
+        pass
+    active = find_active_constraints(x, l, u)
+
+    return info['nfev'], optimality, np.dot(f, f), np.sum(active)
 
 
 def run_l_bfgs_b(problem, ftol=1e-5, gtol=1e-3, xtol=None):
-    bounds = scipy_bounds(problem)
+    bounds, l, u = scipy_bounds(problem)
     factr = ftol / np.finfo(float).eps
     x, obj_value, info = fmin_l_bfgs_b(
         problem.obj_value, problem.x0, fprime=problem.grad, bounds=bounds,
         m=100, factr=factr, pgtol=gtol, iprint=-1)
-    return x, obj_value, info['funcalls']
+    g = problem.grad(x)
+    optimality = CL_optimality(x, g, l, u)
+    active = find_active_constraints(x, l, u)
+    return info['funcalls'], optimality, obj_value, np.sum(active)
 
 
 METHODS = OrderedDict([
@@ -106,8 +122,7 @@ def run_benchmark(problems, ftol=1e-5, xtol=1e-5, gtol=1e-3,
             results.append(result)
 
         for i, (method_name, result) in enumerate(zip(used_methods, results)):
-            x, obj_value, nfev = result
-            opt, active = problem.check_solution(x)
+            nfev, opt, obj_value, active = result
             if "_B" in problem_name and method_name == 'leastsq':
                 method_name += "bound"
             if i == 0:
@@ -121,13 +136,14 @@ def run_benchmark(problems, ftol=1e-5, xtol=1e-5, gtol=1e-3,
 
 
 def parse_arguments():
+    tol = np.finfo(float).eps**0.5
     parser = argparse.ArgumentParser()
     parser.add_argument("output", nargs='?', type=str, help="Output file.")
     parser.add_argument("-u", action='store_true', help="Benchmark unbounded")
     parser.add_argument("-b", action='store_true', help="Benchmark bounded.")
-    parser.add_argument("-ftol", type=float, default=1e-10)
-    parser.add_argument("-xtol", type=float, default=0)
-    parser.add_argument("-gtol", type=float, default=0)
+    parser.add_argument("-ftol", type=float, default=tol)
+    parser.add_argument("-xtol", type=float, default=tol)
+    parser.add_argument("-gtol", type=float, default=tol)
     return parser.parse_args()
 
 
@@ -141,12 +157,13 @@ def main():
         args.u = True
         args.b = True
     if args.u:
+        methods = None
         run_benchmark(u, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
-                      benchmark_name="Unbounded problems")
+                      methods=methods, benchmark_name="Unbounded problems")
     if args.b:
+        methods = ['trf', 'dogbox', 'leastsq', 'l-bfgs-b']
         run_benchmark(b, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
-                      methods=["dogbox", "trf", "leastsq", "l-bfgs-b"],
-                      benchmark_name="Bounded problems")
+                      methods=methods,  benchmark_name="Bounded problems")
 
 
 if __name__ == '__main__':

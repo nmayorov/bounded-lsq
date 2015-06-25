@@ -99,3 +99,23 @@ def make_strictly_feasible(x, l, u, rstep=0):
         x_new[m] = u[m] - rstep * (1 + np.abs(u[m]))
 
     return x_new
+
+
+def CL_scaling(x, g, l, u):
+    """Compute a scaling vector and its derivatives as described in papers
+    of Coleman and Li."""
+    d = np.ones_like(x)
+    jv = np.zeros_like(x)
+    mask = (g < 0) & np.isfinite(u)
+    d[mask] = u[mask] - x[mask]
+    jv[mask] = -1
+    mask = (g > 0) & np.isfinite(l)
+    d[mask] = x[mask] - l[mask]
+    jv[mask] = 1
+
+    return d**0.5, jv
+
+
+def CL_optimality(x, g, l, u):
+    d, _ = CL_scaling(x, g, l, u)
+    return np.linalg.norm(d**2 * g, ord=np.inf)

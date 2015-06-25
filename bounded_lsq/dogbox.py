@@ -3,6 +3,7 @@ from __future__ import division
 import numpy as np
 from numpy.linalg import lstsq, norm
 from .bounds import step_size_to_bounds, in_bounds, check_bounds
+from .helpers import EPS, check_tolerance, prepare_OptimizeResult
 
 
 def find_intersection(x, tr_bounds, l, u):
@@ -68,7 +69,7 @@ def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
 
 
 def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
-           max_nfev=1000, scaling=1.0):
+           max_nfev=None, scaling=1.0):
     """Minimize the sum of squares with bounds on independent variables
     by rectangular trust-region dogleg algorithm.
 
@@ -116,9 +117,13 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     if not feasible:
         raise ValueError("`x0` is infeasible.")
 
-    nfev = 1
+    ftol, xtol, gtol = check_tolerance(ftol, xtol, gtol)
+
     f = fun(x0)
+    nfev = 1
+
     J = jac(x0)
+    njac = 1
 
     if scaling == 'auto':
         J_norm = np.linalg.norm(J, axis=0)
@@ -126,6 +131,9 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         scale = 1 / J_norm
     else:
         scale = np.asarray(scaling)
+
+    if scale.ndim == 0:
+        scale = np.full_like(x0, scale)
 
     Delta = np.linalg.norm(x0 / scale, ord=np.inf)
     if Delta == 0:
@@ -137,8 +145,15 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
 
     x = x0.copy()
     step = np.empty_like(x0)
-    obj_val = np.dot(f, f)
+    obj_value = np.dot(f, f)
+
+    if max_nfev is None:
+        max_nfev = 100 * n
+
+    nit = 0
+    termination_status = None
     while nfev < max_nfev:
+        nit += 1
         g = J.T.dot(f)
 
         if scaling == 'auto':
@@ -148,40 +163,45 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
 
         active_set = on_bound * g < 0
         free_set = ~active_set
-        if np.all(active_set):
-            break
 
         J_free = J[:, free_set]
         g_free = g[free_set]
         x_free = x[free_set]
         l_free = l[free_set]
         u_free = u[free_set]
+        scale_free = scale[free_set]
 
-        if norm(g_free, ord=np.inf) <= gtol:
-            break
+        if np.all(active_set):
+            termination_status = 3
+        else:
+            g_norm = norm(scale_free * g_free, ord=np.inf)
+            if g_norm < gtol:
+                termination_status = 1
+
+        if termination_status is not None:
+            return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
+                                          nfev, njac, nit, termination_status)
 
         newton_step = lstsq(J_free, -f)[0]
         Jg = J_free.dot(g_free)
         cauchy_step = -np.dot(g_free, g_free) / np.dot(Jg, Jg) * g_free
 
-        actual_change = 1.0
-        while nfev < max_nfev and actual_change > 0:
-            tr_bounds = Delta * scale
-            if tr_bounds.ndim == 1:
-                tr_bounds = tr_bounds[free_set]
+        actual_reduction = -1.0
+        while nfev < max_nfev and actual_reduction < 0:
+            tr_bounds = Delta * scale_free
 
             step_free, on_bound_free, box_hit = dogleg_step(
                 x_free, cauchy_step, newton_step, tr_bounds, l_free, u_free)
 
             Js = J_free.dot(step_free)
-            predicted_change = np.dot(Js, Js) + 2 * np.dot(Js, f)
+            predicted_reduction = -np.dot(Js, Js) - 2 * np.dot(Js, f)
 
             # In (nearly) rank deficient case Newton step can be
             # inappropriate, in this case use (constrained) Cauchy step.
-            if predicted_change >= 0:
+            if predicted_reduction <= 0:
                 step_free, on_bound_free, box_hit = constrained_cauchy_step(
                     x_free, cauchy_step, tr_bounds, l_free, u_free)
-                predicted_change = np.dot(Js, Js) + 2 * np.dot(Js, f)
+                predicted_reduction = -np.dot(Js, Js) - 2 * np.dot(Js, f)
 
             step.fill(0.0)
             step[free_set] = step_free
@@ -190,23 +210,34 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
             f_new = fun(x_new)
             nfev += 1
 
-            obj_val_new = np.dot(f_new, f_new)
-            actual_change = obj_val_new - obj_val
+            obj_value_new = np.dot(f_new, f_new)
+            actual_reduction = obj_value - obj_value_new
 
-            ratio = actual_change / predicted_change
+            if predicted_reduction > 0:
+                ratio = actual_reduction / predicted_reduction
+            else:
+                ratio = 0
 
             if ratio < 0.25:
-                Delta = 0.25 * min(Delta, norm(step / scale, ord=np.inf))
+                Delta = 0.25 * norm(step / scale, ord=np.inf)
             elif ratio > 0.75 and box_hit:
                 Delta *= 2.0
 
+            if abs(actual_reduction) < ftol * obj_value:
+                termination_status = 2
+                break
+
+            if Delta < xtol * max(EPS**0.5, norm(x / scale, ord=np.inf)):
+                termination_status = 3
+                break
+
         x = x_new
         f = f_new
-        J = jac(x)
-        obj_val = obj_val_new
 
-        if abs(actual_change) < ftol * obj_val or norm(step) < xtol:
-            break
+        J = jac(x)
+        njac += 1
+
+        obj_value = obj_value_new
 
         on_bound[free_set] = on_bound_free
 
@@ -216,4 +247,5 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     m = on_bound == 1
     x[m] = u[m]
 
-    return x, obj_val, nfev
+    return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm, nfev,
+                                  njac, nit, 0)

@@ -7,23 +7,10 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import svd
 
-from .bounds import step_size_to_bounds, make_strictly_feasible, check_bounds
+from .bounds import (step_size_to_bounds, make_strictly_feasible,
+                     check_bounds, CL_scaling)
 from .trust_region import get_intersection, solve_lsq_trust_region
-
-
-def CL_scaling(x, g, l, u):
-    """Compute a scaling vector and its derivatives as described in papers
-    of Coleman and Li."""
-    d = np.ones_like(x)
-    jv = np.zeros_like(x)
-    mask = (g < 0) & np.isfinite(u)
-    d[mask] = u[mask] - x[mask]
-    jv[mask] = -1
-    mask = (g > 0) & np.isfinite(l)
-    d[mask] = x[mask] - l[mask]
-    jv[mask] = 1
-
-    return d**0.5, jv
+from .helpers import EPS, check_tolerance, prepare_OptimizeResult
 
 
 def minimize_quadratic(a, b, l, u):
@@ -182,8 +169,8 @@ def find_gradient_step(x, J_h, diag_h, g_h, d, Delta, l, u, theta):
     return -g_stride * g_h
 
 
-def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
-        max_nfev=1000, scaling=1.0):
+def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
+        gtol=EPS**0.5, max_nfev=None, scaling=1.0):
     """Minimize the sum of squares with bounds on independent variables
     by Trust Region Reflective algorithm.
 
@@ -208,8 +195,9 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         Tolerance for termination by the change of the independent variables.
     gtol : float, optional
         Tolerance for termination by the norm of scaled gradient.
-    max_nfev : int, optional
-        Max number of function evaluations before the termination.
+    max_nfev : None or int, optional
+        Max number of function evaluations before the termination. If None,
+        then it is assigned to 100 * n.
     scaling : array-like or 'auto', optional
         Determines scaling of the variables. A bigger value for some variable
         means that this variable can change stronger during iterations,
@@ -230,11 +218,16 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     if not feasible:
         raise ValueError("`x0` is infeasible.")
 
+    ftol, xtol, gtol = check_tolerance(ftol, xtol, gtol)
+
     x = make_strictly_feasible(x0, l, u, rstep=1e-10)
 
     f = fun(x)
     nfev = 1
+
     J = jac(x)
+    njac = 1
+
     g = J.T.dot(f)
     m, n = J.shape
 
@@ -256,7 +249,13 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     obj_value = np.dot(f, f)
     alpha = 0.0
 
+    if max_nfev is None:
+        max_nfev = 100 * n
+
+    nit = 0
+    termination_status = None
     while nfev < max_nfev:
+        nit += 1
         if scaling == 'auto':
             J_norm = np.linalg.norm(J, axis=0)
             with np.errstate(divide='ignore'):
@@ -269,10 +268,13 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         g_h = d * g
         diag_h = g * jv * scale**2
 
-        g_norm = norm(d_CL**2 * g, ord=np.inf)
+        g_norm = norm(d * g_h, ord=np.inf)
+        if g_norm < gtol:
+            termination_status = 1
 
-        if g_norm < gtol or norm(g_h) == 0:
-            break
+        if termination_status is not None:
+            return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
+                                          nfev, njac, nit, termination_status)
 
         theta = max(0.995, 1 - g_norm)
 
@@ -286,8 +288,8 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         V = VT.T
         uf = U.T.dot(f_extended)
 
-        actual_change = 1.0
-        while nfev < max_nfev and actual_change > 0:
+        actual_reduction = -1
+        while nfev < max_nfev and actual_reduction < 0:
             p_h, alpha, n_iter = solve_lsq_trust_region(
                 n, m, uf, s, V, Delta, initial_alpha=alpha)
             p = d * p_h
@@ -306,7 +308,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
             qp_values = evaluate_quadratic_function(J_h, diag_h, g_h, steps)
             i = np.argmin(qp_values)
             step_h = steps[i]
-            qp_value = qp_values[i]
+            predicted_reduction = -qp_values[i]
 
             step = d * step_h
             x_new = make_strictly_feasible(x + step, l, u)
@@ -315,9 +317,14 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
             f_new = fun(x_new)
 
             obj_value_new = np.dot(f_new, f_new)
-            actual_change = obj_value_new - obj_value
+            actual_reduction = obj_value - obj_value_new
             correction = np.dot(step_h * diag_h, step_h)
-            ratio = 0.5 * (actual_change + correction) / qp_value
+
+            if predicted_reduction > 0:
+                ratio = (0.5 * (actual_reduction - correction) /
+                         predicted_reduction)
+            else:
+                ratio = 0
 
             if ratio < 0.25:
                 Delta_new = 0.25 * norm(step_h)
@@ -327,12 +334,20 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
                 Delta *= 2.0
                 alpha *= 0.5
 
+            if abs(actual_reduction) < ftol * obj_value:
+                termination_status = 2
+                break
+
+            if norm(step) < xtol * max(EPS**0.5, norm(x)):
+                termination_status = 3
+                break
+
         x = x_new
         f = f_new
-        J = jac(x)
         obj_value = obj_value_new
 
-        if abs(actual_change) < ftol * obj_value or norm(step) < xtol:
-            break
+        J = jac(x)
+        njac += 1
 
-    return x, obj_value, nfev
+    return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
+                                  nfev, njac, nit, 0)
