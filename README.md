@@ -13,16 +13,20 @@ The algorithms is contained in package `bounded_lsq`.
 
 ------------
 
-Run benchmarks from `benchmarks/run_benchmarks.py`. For the default usage run 
+Run benchmarks from `benchmarks/run_benchmarks.py`. The default usage 
 
 ```
 python run_benchmarks.py
 ```
 
+runs all benchmarks with default tolerance parameters and prints to stdout.  
+
 The following example command run only bounded problems with custom tolerance settings and writes the result into a file: 
 
 ```
-python run_benchmarks.py report.txt -b -ftol 1e-8 -gtol 1e-5
+python run_benchmarks.py report.txt -b -ftol 1e-12 -xtol 1e-12 -gtol 1e-8 
 ```
 
-For more information about this benchmarks read my [post](https://nmayorov.wordpress.com/2015/06/19/algorithm-benchmarks/). Note, that your results will be somewhat different to ones reported in the blog post, because I made small adjustments to the algorithms (and will keep making them).
+Run `python run_benchmarks.py --help` to see full parameters signature.
+
+For more information about this benchmarks read my [post](https://nmayorov.wordpress.com/2015/06/19/algorithm-benchmarks/). Note, that the results reported in the blog were computed with `-ftol 1e-10 -xtol 0 -gtol 0`, also note that the algorithms were changed too.
