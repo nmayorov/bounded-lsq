@@ -208,8 +208,8 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
         square root of machine epsilon. The optimization process is stopped
         when ``norm(g_scaled, ord=np.inf) < gtol``, where g_scaled is
         properly scaled gradient to account for the presence of bounds as
-        described in [1]_ and additional scaling imposed by `scaling`
-        parameter (see below).
+        described in [1]_. The scaling imposed by `scaling` parameter
+        (see below) is not considered.
     max_nfev : None or int, optional
         Maximum number of function evaluations before the termination.
         If None (default), then it is assigned to 100 * n.
@@ -320,7 +320,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
         g_h = d * g
         diag_h = g * jv * scale**2
 
-        g_norm = norm(d * g_h, ord=np.inf)
+        g_norm = norm(g * d_CL**2, ord=np.inf)
         if g_norm < gtol:
             termination_status = 1
 

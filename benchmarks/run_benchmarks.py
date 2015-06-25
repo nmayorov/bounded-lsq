@@ -162,7 +162,7 @@ def main():
         run_benchmark(u, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
                       methods=methods, benchmark_name="Unbounded problems")
     if args.b:
-        methods = ['trf', 'dogbox', 'leastsq', 'l-bfgs-b']
+        methods = ['dogbox', 'trf', 'leastsq', 'l-bfgs-b']
         run_benchmark(b, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
                       methods=methods,  benchmark_name="Bounded problems")
 

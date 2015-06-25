@@ -103,10 +103,10 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         Tolerance for termination by the norm of gradient with respect
         to variables which isn't on the boundary in the final solution.
         Default is square root of machine epsilon. The optimization process
-        is stopped when ``norm(g_scaled, ord=np.inf) < gtol``, where g_scaled
-        is the gradient with respect to scaled variables, see `scaling` below.
-        If all variables reach optimum on the boundary, then g_scaled is
-        effectively assigned to zero and algorithm terminates.
+        is stopped when ``norm(g, ord=np.inf) < gtol``, where g is the
+        gradient of objective function at the current iterate. If all
+        variables reach optimum on the boundary, then g is effectively
+        assigned to zero and the algorithm terminates.
     max_nfev : None or int, optional
         Maximum number of function evaluations before the termination.
         If None (default), then it is assigned to 100 * n.
@@ -130,9 +130,9 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     jac : array, shape (m, n)
         Jacobian at the solution.
     optimality : float
-        Firs-order optimality measure. Uniform norm of scaled gradient with
-        respect to variables which aren't on the boundary. This quantity was
-        compared with `gtol` during iterations.
+        Firs-order optimality measure. Uniform norm of a gradient with respect
+        to variables which aren't on the boundary. This quantity was compared
+        with `gtol` during iterations.
     active_mask : array of bool, shape (n,)
         True means that the corresponding constraint is active at the solution.
         Very accurate as the algorithm tracks active constraints during
@@ -221,9 +221,9 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         scale_free = scale[free_set]
 
         if np.all(active_set):
-            termination_status = 3
+            termination_status = 1
         else:
-            g_norm = norm(scale_free * g_free, ord=np.inf)
+            g_norm = norm(g_free, ord=np.inf)
             if g_norm < gtol:
                 termination_status = 1
 
