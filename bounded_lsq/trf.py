@@ -181,7 +181,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     Parameters
     ----------
     fun : callable
-        Returns a 1d-array of residuals of size m.
+        Returns a 1-D array of residuals of size m.
     jac : callable
         Returns an m-by-n array containing partial derivatives of f with
         respect to x, known as Jacobian matrix.
@@ -194,25 +194,25 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
         sign.
     ftol : float, optional
         Tolerance for termination by the change of the objective value.
-        Default is square root from machine epsilon. The optimization process
+        Default is square root of machine epsilon. The optimization process
         is stopped when ``dF < ftol * F``, where dF is the change of the
         objective value in the last iteration.
     xtol : float, optional
         Tolerance for termination by the change of the independent variables.
-        Default is square root from machine epsilon. The optimization process
+        Default is square root of machine epsilon. The optimization process
         is stopped when ``norm(dx) < xtol * max(EPS**0.5, norm(x))``,
         where dx is a step taken in the last iteration and EPS is machine
         epsilon.
     gtol : float, optional
         Tolerance for termination by the norm of scaled gradient. Default is
-        square root from machine epsilon. The optimization process is stopped
-        when ``norm(g_scaled, ord=np.inf) < gtol``, where ``g_scaled`` is
+        square root of machine epsilon. The optimization process is stopped
+        when ``norm(g_scaled, ord=np.inf) < gtol``, where g_scaled is
         properly scaled gradient to account for the presence of bounds as
         described in [1]_ and additional scaling imposed by `scaling`
         parameter (see below).
     max_nfev : None or int, optional
-        Maximum number of function evaluations before the termination. If None,
-        then it is assigned to 100 * n.
+        Maximum number of function evaluations before the termination.
+        If None (default), then it is assigned to 100 * n.
     scaling : array-like or 'auto', optional
         Determines scaling of the variables. A bigger value for some variable
         means that this variable can change stronger during iterations,
@@ -229,9 +229,9 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     OptimizeResult with the following fields defined.
     x : array, shape (n,)
         Found solution.
-    fun : float
+    obj_value : float
         Sum of squares at the solution.
-    residual : array, shape (m,)
+    fun : array, shape (m,)
         Vector of residuals at the solution.
     jac : array, shape (m, n)
         Jacobian at the solution.

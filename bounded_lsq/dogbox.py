@@ -90,26 +90,26 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         there is no lower/upper bound on any of the variables.
     ftol : float, optional
         Tolerance for termination by the change of the objective value.
-        Default is square root from machine epsilon. The optimization process
+        Default is square root of machine epsilon. The optimization process
         is stopped when ``dF < ftol * F``, where dF is a change of the
         objective value in the last iteration.
     xtol : float. optional
         Tolerance for termination by the change of the independent variables.
-        Default is square root from machine epsilon. The optimization process
+        Default is square root of machine epsilon. The optimization process
         is stopped when ``Delta < xtol * max(EPS**0.5, norm(scaled_x))``,
         where Delta is a trust-region radius, scaled_x is a scaled value
         of x (see `scaling` below), EPS is machine epsilon.
     gtol : float, optional
         Tolerance for termination by the norm of gradient with respect
         to variables which isn't on the boundary in the final solution.
-        Default is square root from machine epsilon. The optimization process
+        Default is square root of machine epsilon. The optimization process
         is stopped when ``norm(g_scaled, ord=np.inf) < gtol``, where g_scaled
         is the gradient with respect to scaled variables, see `scaling` below.
         If all variables reach optimum on the boundary, then g_scaled is
         effectively assigned to zero and algorithm terminates.
-    max_nfev : int, optional
-        Maximum number of function evaluations before the termination. If None,
-        then it is assigned to 100 * n.
+    max_nfev : None or int, optional
+        Maximum number of function evaluations before the termination.
+        If None (default), then it is assigned to 100 * n.
     scaling : array-like or 'auto', optional
         Determines scaling of the variables. A bigger value for some variable
         means that this variable can change stronger during iterations,
@@ -123,9 +123,9 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     OptimizeResult with the following fields defined.
     x : array, shape (n,)
         Found solution.
-    fun : float
+    obj_value : float
         Sum of squares at the solution.
-    residual : array, shape (m,)
+    fun : array, shape (m,)
         Vector of residuals at the solution.
     jac : array, shape (m, n)
         Jacobian at the solution.

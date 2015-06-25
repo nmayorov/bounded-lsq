@@ -35,9 +35,9 @@ def prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
                            nfev, njac, nit, status, active_mask=None):
     r = OptimizeResult()
     r.x = x
-    r.residual = f
+    r.fun = f
     r.jac = J
-    r.fun = obj_value
+    r.obj_value = obj_value
     r.optimality = g_norm
     if active_mask is None:
         r.active_mask = find_active_constraints(x, l, u)

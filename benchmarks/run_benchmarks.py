@@ -15,7 +15,7 @@ def run_dogbox(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
     result = dogbox(problem.fun, problem.jac, problem.x0,
                     bounds=problem.bounds, ftol=ftol, gtol=gtol,
                     xtol=xtol, **kwargs)
-    return (result.nfev, result.optimality, result.fun,
+    return (result.nfev, result.optimality, result.obj_value,
             np.sum(result.active_mask))
 
 
@@ -23,7 +23,7 @@ def run_trf(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
     result = trf(problem.fun, problem.jac, problem.x0,
                  bounds=problem.bounds, ftol=ftol, gtol=gtol,
                  xtol=xtol, **kwargs)
-    return (result.nfev, result.optimality, result.fun,
+    return (result.nfev, result.optimality, result.obj_value,
             np.sum(result.active_mask))
 
 
@@ -60,7 +60,7 @@ def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
 
     x, cov_x, info, _, _ = leastsqbound(
         problem.fun, problem.x0, bounds=bounds, full_output=True,
-        Dfun=problem.jac, ftol=ftol, gtol=gtol, diag=diag, **kwargs
+        Dfun=problem.jac, ftol=ftol, xtol=xtol, gtol=gtol, diag=diag, **kwargs
     )
     f = problem.fun(x)
     g = problem.grad(x)
@@ -112,6 +112,8 @@ def run_benchmark(problems, ftol=1e-5, xtol=1e-5, gtol=1e-3,
         methods = METHODS.keys()
 
     for problem_name, problem in problems:
+        if problem_name == 'ThermistorResistance':
+            pass
         results = []
         used_methods = []
         for method_name in methods:
