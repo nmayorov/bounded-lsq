@@ -223,6 +223,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         scale_free = scale[free_set]
 
         if np.all(active_set):
+            g_norm = 0.0
             termination_status = 1
         else:
             g_norm = norm(g_free, ord=np.inf)
@@ -249,7 +250,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
             predicted_reduction = -np.dot(Js, Js) - 2 * np.dot(Js, f)
 
             # In (nearly) rank deficient case Newton step can be
-            # inappropriate, in this case use (constrained) Cauchy step.
+            # inadequate, in this case use (constrained) Cauchy step.
             if predicted_reduction <= 0:
                 step_free, on_bound_free, box_hit = constrained_cauchy_step(
                     x_free, cauchy_step, tr_bounds, l_free, u_free)
