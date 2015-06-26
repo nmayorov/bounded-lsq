@@ -16,7 +16,7 @@ def run_dogbox(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
                     bounds=problem.bounds, ftol=ftol, gtol=gtol,
                     xtol=xtol, **kwargs)
     return (result.nfev, result.optimality, result.obj_value,
-            np.sum(result.active_mask))
+            np.sum(result.active_mask), result.status)
 
 
 def run_trf(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
@@ -24,7 +24,7 @@ def run_trf(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
                  bounds=problem.bounds, ftol=ftol, gtol=gtol,
                  xtol=xtol, **kwargs)
     return (result.nfev, result.optimality, result.obj_value,
-            np.sum(result.active_mask))
+            np.sum(result.active_mask), result.status)
 
 
 def scipy_bounds(problem):
@@ -58,7 +58,7 @@ def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
     else:
         diag = None
 
-    x, cov_x, info, _, _ = leastsqbound(
+    x, cov_x, info, mesg, ier = leastsqbound(
         problem.fun, problem.x0, bounds=bounds, full_output=True,
         Dfun=problem.jac, ftol=ftol, xtol=xtol, gtol=gtol, diag=diag, **kwargs
     )
@@ -67,7 +67,7 @@ def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
     optimality = CL_optimality(x, g, l, u)
     active = find_active_constraints(x, l, u)
 
-    return info['nfev'], optimality, np.dot(f, f), np.sum(active)
+    return info['nfev'], optimality, np.dot(f, f), np.sum(active), ier
 
 
 def run_l_bfgs_b(problem, ftol=1e-5, gtol=1e-3, xtol=None):
@@ -79,7 +79,8 @@ def run_l_bfgs_b(problem, ftol=1e-5, gtol=1e-3, xtol=None):
     g = 0.5 * problem.grad(x)
     optimality = CL_optimality(x, g, l, u)
     active = find_active_constraints(x, l, u)
-    return info['funcalls'], optimality, obj_value, np.sum(active)
+    return (info['funcalls'], optimality, obj_value, np.sum(active),
+            info['warnflag'])
 
 
 METHODS = OrderedDict([
@@ -96,9 +97,9 @@ METHODS = OrderedDict([
 
 def run_benchmark(problems, ftol=1e-5, xtol=1e-5, gtol=1e-3,
                   methods=None, benchmark_name=None):
-    header = "{:<25} {:<5} {:<5} {:<15} {:<5} {:<10} {:<10} {:<5}".\
+    header = "{:<25} {:<5} {:<5} {:<15} {:<5} {:<10} {:<10} {:<8} {:<8}".\
         format("problem", "n", "m", "solver", "nfev", "g norm",
-               "value", "active")
+               "value", "active", "status")
 
     if benchmark_name is not None:
         print(benchmark_name.center(len(header)))
@@ -106,7 +107,8 @@ def run_benchmark(problems, ftol=1e-5, xtol=1e-5, gtol=1e-3,
     print(header)
     print("-" * len(header))
 
-    report_format = "{:<25} {:<5} {:<5} {:<15} {:<5} {:<10.2e} {:<10.2e} {:<5}"
+    report_format = "{:<25} {:<5} {:<5} {:<15} {:<5} {:<10.2e} {:<10.2e} " \
+                    "{:<8} {:<8}"
 
     if methods is None:
         methods = METHODS.keys()
@@ -123,16 +125,17 @@ def run_benchmark(problems, ftol=1e-5, xtol=1e-5, gtol=1e-3,
             results.append(result)
 
         for i, (method_name, result) in enumerate(zip(used_methods, results)):
-            nfev, opt, obj_value, active = result
+            nfev, opt, obj_value, active, status = result
             if "_B" in problem_name and method_name == 'leastsq':
                 method_name += "bound"
             if i == 0:
                 print(report_format.format(
                     problem_name, problem.n, problem.m, method_name,
-                    nfev, opt, obj_value, active))
+                    nfev, opt, obj_value, active, status))
             else:
                 print(report_format.format(
-                    "", "", "", method_name, nfev, opt, obj_value, active))
+                    "", "", "", method_name, nfev, opt, obj_value, active,
+                    status))
         print()
 
 
