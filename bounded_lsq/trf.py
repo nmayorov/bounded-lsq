@@ -259,12 +259,35 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     success : int
         True if one of the convergence criteria is satisfied.
 
+    Notes
+    -----
+    The algorithm is motivated by the process of solving the equation, which
+    constitutes the first-order optimality condition for a bound-constrained
+    minimization problem as formulated in [1]_. The algorithm iteratively
+    solves trust-region subproblems augmented by special diagonal quadratic
+    term with trust-region shape determined by the distance from the bounds
+    and the direction of the gradient. This enhancements help not to take
+    steps directly into bounds and explore the whole variable space. To
+    improve convergence speed the reflected from the first bound search
+    direction is considered. To obey theoretical requirements the algorithm is
+    making strictly feasible iterates.
+
+    Trust-region subproblems are solved by exact method very similar to one
+    described in [2]_ and implemented in MINPACK, but with the help of one
+    per iteration singular value decomposition of Jacobian. The algorithm's
+    performance is generally comparable to scipy.optimize.leastsq in unbounded
+    case.
+    
     References
     ----------
     .. [1] Branch, M.A., T.F. Coleman, and Y. Li, "A Subspace, Interior, and
            Conjugate Gradient Method for Large-Scale Bound-Constrained
            Minimization Problems," SIAM Journal on Scientific Computing,
            Vol. 21, Number 1, pp 1–23, 1999.
+
+    .. [2] More, J. J., "The Levenberg-Marquardt Algorithm: Implementation
+           and Theory," Numerical Analysis, ed. G. A. Watson, Lecture Notes
+           in Mathematics 630, Springer Verlag, pp. 105-116, 1977.
     """
     x0 = np.asarray(x0, dtype=float)
     l, u, feasible = check_bounds(x0, bounds)
