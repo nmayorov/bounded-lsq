@@ -154,12 +154,24 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     success : int
         True if one of the convergence criteria is satisfied.
 
+    Notes
+    -----
+    The algorithm operates in a trust-region framework, but considers
+    rectangular trust regions as opposed to conventional elliptical.
+    The intersection of the current trust region and initial bounds is again
+    rectangular, so on each iteration a quadratic minimization problem subject
+    to bounds is solved. Powell's dogleg method [2]_ is applied to solve these
+    subproblems. The algorithm exhibits slow convergence when the rank of
+    Jacobian is less than the number of variables.
+
     References
     ----------
     .. [1] C. Voglis and I. E. Lagaris, "A Rectangular Trust Region Dogleg
            Approach for Unconstrained and Bound Constrained Nonlinear
            Optimization", WSEAS International Conference on Applied
            Mathematics, Corfu, Greece, 2004.
+    .. [2] J. Nocedal and S. J. Wright, "Numerical optimization, 2nd edition",
+           Chapter 4.
     """
     x0 = np.asarray(x0, dtype=float)
     l, u, feasible = check_bounds(x0, bounds)
@@ -234,12 +246,13 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
                 x, f, J, l, u, obj_value, g_norm, nfev, njac, nit,
                 termination_status, active_mask=active_set)
 
+        # Compute (Gauss)-Newton and Cauchy steps
         newton_step = lstsq(J_free, -f)[0]
         Jg = J_free.dot(g_free)
         cauchy_step = -np.dot(g_free, g_free) / np.dot(Jg, Jg) * g_free
 
         actual_reduction = -1.0
-        while nfev < max_nfev and actual_reduction < 0:
+        while actual_reduction < 0 and nfev < max_nfev:
             tr_bounds = Delta * scale_free
 
             step_free, on_bound_free, tr_hit = dogleg_step(
@@ -248,8 +261,8 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
             Js = J_free.dot(step_free)
             predicted_reduction = -np.dot(Js, Js) - 2 * np.dot(Js, f)
 
-            # In (nearly) rank deficient case Newton step can be
-            # inadequate, in this case use (constrained) Cauchy step.
+            # In (nearly) rank deficient case Newton (and thus dogleg) step
+            # can be inadequate, in this case use (constrained) Cauchy step.
             if predicted_reduction <= 0:
                 step_free, on_bound_free, tr_hit = constrained_cauchy_step(
                     x_free, cauchy_step, tr_bounds, l_free, u_free)
