@@ -394,12 +394,13 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
                 termination_status = 3
                 break
 
-        x = x_new
-        f = f_new
-        obj_value = obj_value_new
+        if actual_reduction > 0:
+            x = x_new
+            f = f_new
+            obj_value = obj_value_new
 
-        J = jac(x)
-        njac += 1
+            J = jac(x)
+            njac += 1
 
     return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
                                   nfev, njac, nit, 0)

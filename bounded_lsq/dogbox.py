@@ -284,22 +284,20 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
                 termination_status = 3
                 break
 
-        on_bound[free_set] = on_bound_free
+        if actual_reduction > 0:
+            on_bound[free_set] = on_bound_free
 
-        x = x_new
-        mask = on_bound == -1
-        x[mask] = l[mask]
-        mask = on_bound == 1
-        x[mask] = u[mask]
+            x = x_new
+            mask = on_bound == -1
+            x[mask] = l[mask]
+            mask = on_bound == 1
+            x[mask] = u[mask]
 
-        f = f_new
+            f = f_new
+            obj_value = obj_value_new
 
-        J = jac(x)
-        njac += 1
-
-        obj_value = obj_value_new
-
-        on_bound[free_set] = on_bound_free
+            J = jac(x)
+            njac += 1
 
     return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm, nfev,
                                   njac, nit, 0, active_mask=active_set)
