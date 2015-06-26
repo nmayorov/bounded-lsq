@@ -109,7 +109,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         assigned to zero and the algorithm terminates.
     max_nfev : None or int, optional
         Maximum number of function evaluations before the termination.
-        If None (default), then it is assigned to 100 * n.
+        If None (default), it is assigned to 100 * n.
     scaling : array-like or 'auto', optional
         Determines scaling of the variables. Default is 1.0 which means no
         scaling. A bigger value for some variable means that this variable can

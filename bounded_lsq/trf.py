@@ -185,9 +185,9 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     jac : callable
         Returns an m-by-n array containing partial derivatives of f with
         respect to x, known as Jacobian matrix.
-    x0 : array, shape (n,)
+    x0 : array-like, shape (n,)
         Initial guess on the independent variables.
-    bounds : tuple of array, optional
+    bounds : tuple of array-like, optional
         Lower and upper bounds on independent variables. None means that
         there is no lower/upper bound on any of the variables. To disable
         a bound on an individual variable use np.inf with the appropriate
@@ -212,33 +212,33 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
         (see below) is not considered.
     max_nfev : None or int, optional
         Maximum number of function evaluations before the termination.
-        If None (default), then it is assigned to 100 * n.
+        If None (default), it is assigned to 100 * n.
     scaling : array-like or 'auto', optional
-        Determines scaling of the variables. A bigger value for some variable
-        means that this variable can change stronger during iterations,
-        compared to other variables. A scalar value won't affect the algorithm
-        (except maybe fixing/introducing numerical problems and changing
-        termination criteria). If 'auto', then scaling is inversely
-        proportional to the norm of Jacobian columns. This concept is
-        irrelevant to scaling suggested in [1]_ for handling the bounds,
-        from the experience it is generally not recommended to use
-        ``scaling=auto`` in bounded problems.
+        Determines scaling of the variables. Default is 1.0 which means no
+        scaling. A bigger value for some variable means that this variable can
+        change stronger during iterations, compared to other variables.
+        A scalar value won't affect the algorithm (except maybe
+        fixing/introducing numerical problems and changing termination
+        criteria). If 'auto', then scaling is inversely proportional to the
+        norm of Jacobian columns. This concept is irrelevant to scaling
+        suggested in [1]_ for handling the bounds, from the experience it is
+        generally not recommended to use ``scaling=auto`` in bounded problems.
 
     Returns
     -------
     OptimizeResult with the following fields defined.
-    x : array, shape (n,)
+    x : ndarray, shape (n,)
         Found solution.
     obj_value : float
         Sum of squares at the solution.
-    fun : array, shape (m,)
+    fun : ndarray, shape (m,)
         Vector of residuals at the solution.
-    jac : array, shape (m, n)
+    jac : ndarray, shape (m, n)
         Jacobian at the solution.
     optimality : float
         Firs-order optimality measure. Uniform norm of scaled gradient. This
         quantity was compared with `gtol` during iterations.
-    active_mask : array of bool, shape (n,)
+    active_mask : ndarray of bool, shape (n,)
         True means that the corresponding constraint is active at the solution.
         Might be somewhat arbitrary as the algorithm does strictly feasible
         iterations, thus `active_mask` is determined with tolerance threshold.
@@ -266,6 +266,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
            Minimization Problems," SIAM Journal on Scientific Computing,
            Vol. 21, Number 1, pp 1–23, 1999.
     """
+    x0 = np.asarray(x0, dtype=float)
     l, u, feasible = check_bounds(x0, bounds)
     if not feasible:
         raise ValueError("`x0` is infeasible.")
