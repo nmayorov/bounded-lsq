@@ -277,7 +277,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     per iteration singular value decomposition of Jacobian. The algorithm's
     performance is generally comparable to scipy.optimize.leastsq in unbounded
     case.
-    
+
     References
     ----------
     .. [1] Branch, M.A., T.F. Coleman, and Y. Li, "A Subspace, Interior, and

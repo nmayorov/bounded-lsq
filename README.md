@@ -21,7 +21,7 @@ python run_benchmarks.py
 
 runs all benchmarks with default tolerance parameters and prints to stdout.  
 
-The following example command run only bounded problems with custom tolerance settings and writes the result into a file: 
+The following example command run only bounded problems with custom tolerance settings and prints the result into a file: 
 
 ```
 python run_benchmarks.py report.txt -b -ftol 1e-12 -xtol 1e-12 -gtol 1e-8 
@@ -29,4 +29,4 @@ python run_benchmarks.py report.txt -b -ftol 1e-12 -xtol 1e-12 -gtol 1e-8
 
 Run `python run_benchmarks.py --help` to see full parameters signature.
 
-For more information about this benchmarks read my [post](https://nmayorov.wordpress.com/2015/06/19/algorithm-benchmarks/). Note, that the results reported in the blog were computed with `-ftol 1e-10 -xtol 0 -gtol 0`, also note that the algorithms were modified too.
+For more information about this benchmarks read my [post](https://nmayorov.wordpress.com/2015/06/19/algorithm-benchmarks/). Your results can be somewhat different to ones reported in the blog, because I keep adjusting algorithms.
