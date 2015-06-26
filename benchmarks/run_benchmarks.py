@@ -63,7 +63,7 @@ def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
         Dfun=problem.jac, ftol=ftol, xtol=xtol, gtol=gtol, diag=diag, **kwargs
     )
     f = problem.fun(x)
-    g = problem.grad(x)
+    g = 0.5 * problem.grad(x)
     optimality = CL_optimality(x, g, l, u)
     active = find_active_constraints(x, l, u)
 
@@ -76,7 +76,7 @@ def run_l_bfgs_b(problem, ftol=1e-5, gtol=1e-3, xtol=None):
     x, obj_value, info = fmin_l_bfgs_b(
         problem.obj_value, problem.x0, fprime=problem.grad, bounds=bounds,
         m=100, factr=factr, pgtol=gtol, iprint=-1)
-    g = problem.grad(x)
+    g = 0.5 * problem.grad(x)
     optimality = CL_optimality(x, g, l, u)
     active = find_active_constraints(x, l, u)
     return info['funcalls'], optimality, obj_value, np.sum(active)
