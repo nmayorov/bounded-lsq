@@ -24,7 +24,7 @@ def in_bounds(x, l, u):
     return np.all((x >= l) & (x <= u))
 
 
-def step_size_to_bounds(x, d, l, u):
+def step_size_to_bound(x, d, l, u):
     """Compute a step size required to reach the bounds.
 
     The function computes a positive scalar t, such that x + t * d is on

@@ -7,7 +7,7 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import svd
 
-from .bounds import (step_size_to_bounds, make_strictly_feasible,
+from .bounds import (step_size_to_bound, make_strictly_feasible,
                      check_bounds, CL_scaling)
 from .trust_region import get_intersection, solve_lsq_trust_region
 from .helpers import EPS, check_tolerance, prepare_OptimizeResult
@@ -45,15 +45,15 @@ def build_1d_quadratic_function(J, diag, g, s, s0=None):
 
     Parameters
     ----------
-    J : array, shape (m, n)
+    J : ndarray, shape (m, n)
         Jacobian matrix.
-    diag : array, shape (n,)
+    diag : ndarray, shape (n,)
         Addition diagonal term in a quadratic part.
-    g : array, shape (n,)
+    g : ndarray, shape (n,)
         Gradient, defines a linear term.
-    s : array, shape (n,)
+    s : ndarray, shape (n,)
         Direction of search.
-    s0 : None or array, shape (n,), optional
+    s0 : None or ndarray with shape (n,), optional
         Initial point. If None assumed to be 0.
 
     Returns
@@ -80,22 +80,22 @@ def build_1d_quadratic_function(J, diag, g, s, s0=None):
 def evaluate_quadratic_function(J, diag, g, steps):
     """Compute values of a quadratic function arising in least-squares.
 
-    The function is s.T * (J.T * J + diag) * s + g.T * s.
+    The function is 0.5 * s.T * (J.T * J + diag) * s + g.T * s.
 
     Parameters
     ----------
-    J : array, shape (m, n)
+    J : ndarray, shape (m, n)
         Jacobian matrix.
-    diag : array, shape (n,)
+    diag : ndarray, shape (n,)
         Additional diagonal term.
-    f : array, shape (m,)
+    f : ndarray, shape (m,)
         Vector of residuals.
-    steps : array, shape (k, m)
+    steps : ndarray, shape (k, m)
         Array containing k steps as rows.
 
     Returns
     -------
-    values : array, shape (k,)
+    values : ndarray, shape (k,)
         Array containing k values of the function.
     """
     Js = J.dot(steps.T)
@@ -103,13 +103,14 @@ def evaluate_quadratic_function(J, diag, g, steps):
                   np.sum(diag * steps**2, axis=1)) + np.dot(steps, g)
 
 
-def find_reflective_step(x, J_h, diag_h, g_h, p, p_h, d, Delta, l, u, theta):
+def find_reflected_step(x, J_h, diag_h, g_h, p, p_h, d, Delta, l, u, theta):
     """Find a single reflection step for Trust Region Reflective algorithm.
 
     Also corrects the initial step p/p_h. This function must be called only
     if x + p is not within the bounds.
     """
-    p_stride, hits = step_size_to_bounds(x, p, l, u)
+    # Use term "stride" for scalar step length.
+    p_stride, hits = step_size_to_bound(x, p, l, u)
 
     # Compute the reflected direction.
     r_h = np.copy(p_h)
@@ -123,27 +124,28 @@ def find_reflective_step(x, J_h, diag_h, g_h, p, p_h, d, Delta, l, u, theta):
 
     # Reflected direction will cross first either feasible region or trust
     # region boundary.
-    _, stride_to_tr = get_intersection(p_h, r_h, Delta)
+    _, to_tr = get_intersection(p_h, r_h, Delta)
+    to_bound, _ = step_size_to_bound(x_on_bound, r, l, u)
+    to_bound *= theta  # Stay strictly interior.
 
-    stride_to_bound, _ = step_size_to_bounds(x_on_bound, r, l, u)
-    stride_to_bound *= theta  # Stay strictly interior.
-
-    r_stride_u = min(stride_to_bound, stride_to_tr)
+    r_stride_u = min(to_bound, to_tr)
 
     # We want a reflected step be at the same theta distance from the bound,
     # so we introduce a lower bound on the allowed stride.
     # The formula below is correct as p_h and r_h has the same norm.
 
-    with np.errstate(divide='ignore'):
+    if r_stride_u > 0:
         r_stride_l = (1 - theta) * p_stride / r_stride_u
+    else:
+        r_stride_l = -1
 
     # Check if no reflection step is available.
-    if r_stride_l < 0 or r_stride_l > r_stride_u:
-        r_h = None
-    else:
+    if r_stride_l <= r_stride_u:
         a, b = build_1d_quadratic_function(J_h, diag_h, g_h, r_h, s0=p_h)
         r_stride, _ = minimize_quadratic(a, b, r_stride_l, r_stride_u)
         r_h = p_h + r_h * r_stride
+    else:
+        r_h = None
 
     # Now we want to correct p_h to make it strictly interior.
     p_h *= theta
@@ -156,12 +158,12 @@ def find_reflective_step(x, J_h, diag_h, g_h, p, p_h, d, Delta, l, u, theta):
 
 
 def find_gradient_step(x, J_h, diag_h, g_h, d, Delta, l, u, theta):
-    """Find a minimizer of a quadratic model along scaled gradient."""
-    stride_to_bound, _ = step_size_to_bounds(x, -g_h * d, l, u)
-    stride_to_bound *= theta
+    """Find a minimizer of a quadratic model along the scaled gradient."""
+    to_bound, _ = step_size_to_bound(x, -g_h * d, l, u)
+    to_bound *= theta
 
-    stride_to_tr = Delta / norm(g_h)
-    g_stride = min(stride_to_bound, stride_to_tr)
+    to_tr = Delta / norm(g_h)
+    g_stride = min(to_bound, to_tr)
 
     a, b = build_1d_quadratic_function(J_h, diag_h, g_h, -g_h)
     g_stride, _ = minimize_quadratic(a, b, 0.0, g_stride)
@@ -176,7 +178,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
 
     Let f(x) maps from R^n to R^m, the function finds a local minimum of
     F(x) = ||f(x)||**2 = sum(f_i(x)**2, i = 1, ...,m),
-    subject to box constraints l <= x <= u
+    subject to bound constraints l <= x <= u
 
     Parameters
     ----------
@@ -296,6 +298,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
 
     ftol, xtol, gtol = check_tolerance(ftol, xtol, gtol)
 
+    # We need strictly feasible guess to start with
     x = make_strictly_feasible(x0, l, u, rstep=1e-10)
 
     f = fun(x)
@@ -319,11 +322,11 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     if Delta == 0:
         Delta = 1.0
 
-    J_extended = np.empty((m + n, n))
-    f_extended = np.zeros((m + n))
+    J_augmented = np.empty((m + n, n))
+    f_augmented = np.zeros((m + n))
 
     obj_value = np.dot(f, f)
-    alpha = 0.0
+    alpha = 0.0  # "Levenberg-Marquardt" parameter
 
     if max_nfev is None:
         max_nfev = 100 * n
@@ -339,6 +342,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
 
         g = J.T.dot(f)
 
+        # Compute Coleman-Li scaling parameters and "hat" variables.
         d_CL, jv = CL_scaling(x, g, l, u)
         d = d_CL * scale
         g_h = d * g
@@ -352,48 +356,61 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
             return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
                                           nfev, njac, nit, termination_status)
 
-        theta = max(0.995, 1 - g_norm)
-
+        # Jacobian in "hat" space.
         J_h = J * d
 
-        J_extended[:m] = J_h
-        J_extended[m:] = np.diag(diag_h**0.5)
-        f_extended[:m] = f
+        # J_augmented is used to solve a trust-region subproblem with
+        # diagonal term diag_h.
+        J_augmented[:m] = J_h
+        J_augmented[m:] = np.diag(diag_h**0.5)
+        f_augmented[:m] = f
 
-        U, s, VT = svd(J_extended, full_matrices=False)
-        V = VT.T
-        uf = U.T.dot(f_extended)
+        U, s, V = svd(J_augmented, full_matrices=False)
+        V = V.T
+        uf = U.T.dot(f_augmented)
 
+        # theta controls step back size from the bounds.
+        theta = max(0.995, 1 - g_norm)
         actual_reduction = -1
+
+        # In the following: p - trust-region solution, r - reflected solution,
+        # c - minimizer along the scaled gradient, _h means the variable
+        # is computed in "hat" space.
         while nfev < max_nfev and actual_reduction < 0:
             p_h, alpha, n_iter = solve_lsq_trust_region(
                 n, m, uf, s, V, Delta, initial_alpha=alpha)
             p = d * p_h
 
-            stride_to_bounds, _ = step_size_to_bounds(x, p, l, u)
-            if stride_to_bounds >= 1:
-                p_h *= min(theta * stride_to_bounds, 1)
-                steps = np.atleast_2d(p_h)
-            else:
-                p_h, r_h = find_reflective_step(
-                    x, J_h, diag_h, g_h, p, p_h, d, Delta, l, u, theta)
-                g_step = find_gradient_step(
-                    x, J_h, diag_h, g_h, d, Delta, l, u, theta)
-                steps = np.array([p_h, r_h, g_step])
+            to_bound, _ = step_size_to_bound(x, p, l, u)
+            if to_bound >= 1:  # Trust region step is feasible.
+                # Still step back from the bounds
+                p_h *= min(theta * to_bound, 1)
+                steps_h = np.atleast_2d(p_h)
+            else:  # Otherwise consider a reflected and gradient steps.
+                p_h, r_h = find_reflected_step(x, J_h, diag_h, g_h, p, p_h,
+                                               d, Delta, l, u, theta)
+                c_h = find_gradient_step(x, J_h, diag_h, g_h,
+                                         d, Delta, l, u, theta)
+                steps_h = np.array([p_h, r_h, c_h])
 
-            qp_values = evaluate_quadratic_function(J_h, diag_h, g_h, steps)
-            i = np.argmin(qp_values)
-            step_h = steps[i]
-            predicted_reduction = -2 * qp_values[i]
+            qp_values = evaluate_quadratic_function(J_h, diag_h, g_h, steps_h)
+            min_index = np.argmin(qp_values)
+            step_h = steps_h[min_index]
+
+            # qp-values are negative, also need to double it
+            predicted_reduction = -2 * qp_values[min_index]
 
             step = d * step_h
             x_new = make_strictly_feasible(x + step, l, u)
 
-            nfev += 1
             f_new = fun(x_new)
+            nfev += 1
 
+            # Usual trust-region step quality estimation.
             obj_value_new = np.dot(f_new, f_new)
             actual_reduction = obj_value - obj_value_new
+            # Correction term is specific to the algorithm,
+            # vanishes in unbounded case.
             correction = np.dot(step_h * diag_h, step_h)
 
             if predicted_reduction > 0:

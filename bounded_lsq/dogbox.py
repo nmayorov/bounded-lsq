@@ -2,7 +2,7 @@ from __future__ import division
 
 import numpy as np
 from numpy.linalg import lstsq, norm
-from .bounds import step_size_to_bounds, in_bounds, check_bounds
+from .bounds import step_size_to_bound, in_bounds, check_bounds
 from .helpers import EPS, check_tolerance, prepare_OptimizeResult
 
 
@@ -23,7 +23,21 @@ def find_intersection(x, tr_bounds, l, u):
 
 
 def dogleg_step(x, cauchy_step, newton_step, tr_bounds, l, u):
-    """Find dogleg step in rectangular constraints."""
+    """Find dogleg step in rectangular constraints.
+
+    Returns
+    -------
+    step : ndarray, shape (n,)
+        Computed dogleg step.
+    bound_hits : ndarray of int, shape (n,)
+        Each component shows whether a corresponding variable reaches the
+        initial bound after the step is taken:
+             0 - a variable doesn't reach the bound.
+            -1 - `l` is reached.
+             1 - `u` is reached.
+    tr_hit : bool
+        Whether the step reaches the boundary of the trust-region.
+    """
     l_total, u_total, l_bound, u_bound, l_tr, u_tr = find_intersection(
         x, tr_bounds, l, u
     )
@@ -34,12 +48,12 @@ def dogleg_step(x, cauchy_step, newton_step, tr_bounds, l, u):
         return newton_step, bound_hits, False
 
     if not in_bounds(cauchy_step, l_total, u_total):
-        alpha, _ = step_size_to_bounds(
+        alpha, _ = step_size_to_bound(
             np.zeros_like(cauchy_step), cauchy_step, l_total, u_total)
         cauchy_step = alpha * cauchy_step
 
     step_diff = newton_step - cauchy_step
-    alpha, hits = step_size_to_bounds(cauchy_step, step_diff,
+    alpha, hits = step_size_to_bound(cauchy_step, step_diff,
                                       l_total, u_total)
     bound_hits[(hits < 0) & l_bound] = -1
     bound_hits[(hits > 0) & u_bound] = 1
@@ -49,7 +63,10 @@ def dogleg_step(x, cauchy_step, newton_step, tr_bounds, l, u):
 
 
 def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
-    """Find constrained Cauchy step."""
+    """Find constrained Cauchy step.
+
+    Returns are the same as in dogleg_step function.
+    """
     l_total, u_total, l_bound, u_bound, l_tr, u_tr = find_intersection(
         x, tr_bounds, l, u
     )
@@ -57,7 +74,7 @@ def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
     if in_bounds(cauchy_step, l_total, u_total):
         return cauchy_step, bound_hits, False
 
-    beta, hits = step_size_to_bounds(
+    beta, hits = step_size_to_bound(
         np.zeros_like(cauchy_step), cauchy_step, l_total, u_total)
 
     bound_hits[(hits < 0) & l_bound] = -1
@@ -67,13 +84,14 @@ def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
     return beta * cauchy_step, bound_hits, tr_hit
 
 
-def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
-           max_nfev=None, scaling=1.0):
+def dogbox(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
+           gtol=EPS**0.5, max_nfev=None, scaling=1.0):
     """Minimize the sum of squares with bounds on independent variables
     by rectangular trust-region dogleg algorithm [1]_.
 
     Let f(x) maps from R^n to R^m, the function finds a local minimum of
-    ``F(x) = ||f(x)||**2 = sum(f_i(x)**2, i = 1, ..., m) s. t. l <= x <= u``.
+    F(x) = ||f(x)||**2 = sum(f_i(x)**2, i = 1, ...,m),
+    subject to bound constraints l <= x <= u
 
     Parameters
     ----------
@@ -246,7 +264,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
                 x, f, J, l, u, obj_value, g_norm, nfev, njac, nit,
                 termination_status, active_mask=active_set)
 
-        # Compute (Gauss)-Newton and Cauchy steps
+        # Compute (Gauss-)Newton and Cauchy steps
         newton_step = lstsq(J_free, -f)[0]
         Jg = J_free.dot(g_free)
         cauchy_step = -np.dot(g_free, g_free) / np.dot(Jg, Jg) * g_free
@@ -275,6 +293,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
             f_new = fun(x_new)
             nfev += 1
 
+            # Usual trust-region step quality estimation.
             obj_value_new = np.dot(f_new, f_new)
             actual_reduction = obj_value - obj_value_new
 
