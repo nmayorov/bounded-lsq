@@ -83,9 +83,9 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
     jac : callable
         Returns an m-by-n array containing partial derivatives of f with
         respect to x, known as Jacobian matrix.
-    x0 : array, shape (n,)
+    x0 : array-like, shape (n,)
         Initial guess on the independent variables.
-    bounds : tuple of array, optional
+    bounds : tuple of array-like, optional
         Lower and upper bounds on independent variables. None means that
         there is no lower/upper bound on any of the variables.
     ftol : float, optional
@@ -111,29 +111,30 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         Maximum number of function evaluations before the termination.
         If None (default), then it is assigned to 100 * n.
     scaling : array-like or 'auto', optional
-        Determines scaling of the variables. A bigger value for some variable
-        means that this variable can change stronger during iterations,
-        compared to other variables. A scalar value won't affect the algorithm
-        (except maybe fixing/introducing numerical problems and changing
-        termination criteria). If 'auto', then scaling is inversely
-        proportional to the norm of Jacobian columns.
+        Determines scaling of the variables. Default is 1.0 which means no
+        scaling. A bigger value for some variable means that this variable can
+        change stronger during iterations, compared to other variables.
+        A scalar value won't affect the algorithm (except maybe
+        fixing/introducing numerical problems and changing termination
+        criteria). If 'auto', then scaling is inversely proportional to the
+        norm of Jacobian columns.
 
     Returns
     -------
     OptimizeResult with the following fields defined.
-    x : array, shape (n,)
+    x : ndarray, shape (n,)
         Found solution.
     obj_value : float
         Sum of squares at the solution.
-    fun : array, shape (m,)
+    fun : ndarray, shape (m,)
         Vector of residuals at the solution.
-    jac : array, shape (m, n)
+    jac : ndarray, shape (m, n)
         Jacobian at the solution.
     optimality : float
         Firs-order optimality measure. Uniform norm of a gradient with respect
         to variables which aren't on the boundary. This quantity was compared
         with `gtol` during iterations.
-    active_mask : array of bool, shape (n,)
+    active_mask : ndarray of bool, shape (n,)
         True means that the corresponding constraint is active at the solution.
         Very accurate as the algorithm tracks active constraints during
         iteration.
@@ -161,6 +162,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
            Optimization", WSEAS International Conference on Applied
            Mathematics, Corfu, Greece, 2004.
     """
+    x0 = np.asarray(x0, dtype=float)
     l, u, feasible = check_bounds(x0, bounds)
     if not feasible:
         raise ValueError("`x0` is infeasible.")
