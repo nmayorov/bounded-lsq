@@ -34,23 +34,22 @@ def dogleg_step(x, cauchy_step, newton_step, tr_bounds, l, u):
         return newton_step, bound_hits, False
 
     if not in_bounds(cauchy_step, l_total, u_total):
-        beta, _ = step_size_to_bounds(
+        alpha, _ = step_size_to_bounds(
             np.zeros_like(cauchy_step), cauchy_step, l_total, u_total)
-        cauchy_step = beta * cauchy_step
+        cauchy_step = alpha * cauchy_step
 
     step_diff = newton_step - cauchy_step
     alpha, hits = step_size_to_bounds(cauchy_step, step_diff,
                                       l_total, u_total)
     bound_hits[(hits < 0) & l_bound] = -1
     bound_hits[(hits > 0) & u_bound] = 1
-    box_hit = np.any((hits < 0) & l_tr | (hits > 0) & u_tr)
+    tr_hit = np.any((hits < 0) & l_tr | (hits > 0) & u_tr)
 
-    return cauchy_step + alpha * step_diff, bound_hits, box_hit
+    return cauchy_step + alpha * step_diff, bound_hits, tr_hit
 
 
 def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
-    """Find constrained Cauchy step in case when Newton step is not
-    available."""
+    """Find constrained Cauchy step."""
     l_total, u_total, l_bound, u_bound, l_tr, u_tr = find_intersection(
         x, tr_bounds, l, u
     )
@@ -63,9 +62,9 @@ def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
 
     bound_hits[(hits < 0) & l_bound] = -1
     bound_hits[(hits > 0) & u_bound] = 1
-    box_hit = np.any((hits < 0) & l_tr | (hits > 0) & u_tr)
+    tr_hit = np.any((hits < 0) & l_tr | (hits > 0) & u_tr)
 
-    return beta * cauchy_step, bound_hits, box_hit
+    return beta * cauchy_step, bound_hits, tr_hit
 
 
 def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
@@ -243,7 +242,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
         while nfev < max_nfev and actual_reduction < 0:
             tr_bounds = Delta * scale_free
 
-            step_free, on_bound_free, box_hit = dogleg_step(
+            step_free, on_bound_free, tr_hit = dogleg_step(
                 x_free, cauchy_step, newton_step, tr_bounds, l_free, u_free)
 
             Js = J_free.dot(step_free)
@@ -252,7 +251,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
             # In (nearly) rank deficient case Newton step can be
             # inadequate, in this case use (constrained) Cauchy step.
             if predicted_reduction <= 0:
-                step_free, on_bound_free, box_hit = constrained_cauchy_step(
+                step_free, on_bound_free, tr_hit = constrained_cauchy_step(
                     x_free, cauchy_step, tr_bounds, l_free, u_free)
                 predicted_reduction = -np.dot(Js, Js) - 2 * np.dot(Js, f)
 
@@ -273,7 +272,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
 
             if ratio < 0.25:
                 Delta = 0.25 * norm(step / scale, ord=np.inf)
-            elif ratio > 0.75 and box_hit:
+            elif ratio > 0.75 and tr_hit:
                 Delta *= 2.0
 
             if abs(actual_reduction) < ftol * obj_value:
@@ -288,6 +287,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=1e-5, xtol=1e-5, gtol=1e-3,
             on_bound[free_set] = on_bound_free
 
             x = x_new
+            # Set variables exactly at the boundary.
             mask = on_bound == -1
             x[mask] = l[mask]
             mask = on_bound == 1
