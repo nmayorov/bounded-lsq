@@ -1,4 +1,5 @@
 """Constrained multivariate least-squares optimization"""
+
 import warnings
 
 from numpy import array, take, eye, triu, transpose, dot, finfo
@@ -298,7 +299,7 @@ def leastsqbound(func, x0, args=(), bounds=None, Dfun=None, full_output=0,
             maxfev = 100 * (n + 1)
 
         def wDfun(x, *args):  # wrapped Dfun
-            return Dfun(i2e(x), *args)
+            return Dfun(i2e(x), *args) * _internal2external_grad(x, bounds)
 
         retval = _minpack._lmder(wfunc, wDfun, i0, args, full_output,
                                  col_deriv, ftol, xtol, gtol, maxfev,
