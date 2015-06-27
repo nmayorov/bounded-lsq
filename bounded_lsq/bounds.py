@@ -59,17 +59,22 @@ def find_active_constraints(x, l, u, rtol=1e-12):
 
     Returns
     ------
-    active : array of bool with shape of x
-        True means that the constraint is active.
+    active : ndarray of int with shape of x
+        Each component shows whether the corresponding constraint is active:
+             0 - a constraint is not active.
+            -1 - a lower bound is active.
+             1 - a upper bound is active.
     """
-    active = np.zeros_like(x, dtype=bool)
+    active = np.zeros_like(x, dtype=int)
 
-    lower_dist = u - x
-    upper_dist = x - l
+    lower_dist = x - l
+    upper_dist = u - x
 
     mask = lower_dist < upper_dist
-    active[mask] = lower_dist[mask] < rtol * np.maximum(1, np.abs(l[mask]))
-    active[~mask] = upper_dist[~mask] < rtol * np.maximum(1, np.abs(u[~mask]))
+    value = lower_dist[mask] < rtol * np.maximum(1, np.abs(l[mask]))
+    active[mask] = -value.astype(int)
+    value = upper_dist[~mask] < rtol * np.maximum(1, np.abs(u[~mask]))
+    active[~mask] = value.astype(int)
 
     return active
 

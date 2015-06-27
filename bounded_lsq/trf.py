@@ -240,10 +240,13 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     optimality : float
         Firs-order optimality measure. Uniform norm of scaled gradient. This
         quantity was compared with `gtol` during iterations.
-    active_mask : ndarray of bool, shape (n,)
-        True means that the corresponding constraint is active at the solution.
+    active_mask : ndarray of int, shape (n,)
+        Each component shows whether the corresponding constraint is active:
+             0 - a constraint is not active.
+            -1 - a lower bound is active.
+             1 - an upper bound is active.
         Might be somewhat arbitrary as the algorithm does strictly feasible
-        iterations, thus `active_mask` is determined with tolerance threshold.
+        iterates, thus `active_mask` is determined with tolerance threshold.
     nfev : int
         Number of function evaluations done.
     njac : int

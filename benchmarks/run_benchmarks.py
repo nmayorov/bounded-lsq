@@ -6,8 +6,8 @@ import sys
 
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
-from bounded_lsq import trf, dogbox, leastsqbound, CL_optimality,\
-    find_active_constraints
+from bounded_lsq import (trf, dogbox, leastsqbound, CL_optimality,
+                         find_active_constraints, make_strictly_feasible)
 from lsq_problems import extract_lsq_problems
 
 
@@ -16,7 +16,7 @@ def run_dogbox(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
                     bounds=problem.bounds, ftol=ftol, gtol=gtol,
                     xtol=xtol, **kwargs)
     return (result.nfev, result.optimality, result.obj_value,
-            np.sum(result.active_mask), result.status)
+            np.sum(result.active_mask != 0), result.status)
 
 
 def run_trf(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
@@ -24,7 +24,7 @@ def run_trf(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
                  bounds=problem.bounds, ftol=ftol, gtol=gtol,
                  xtol=xtol, **kwargs)
     return (result.nfev, result.optimality, result.obj_value,
-            np.sum(result.active_mask), result.status)
+            np.sum(result.active_mask != 0), result.status)
 
 
 def scipy_bounds(problem):
@@ -62,12 +62,12 @@ def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
         problem.fun, problem.x0, bounds=bounds, full_output=True,
         Dfun=problem.jac, ftol=ftol, xtol=xtol, gtol=gtol, diag=diag, **kwargs
     )
+    x = make_strictly_feasible(x, l, u)
     f = problem.fun(x)
     g = 0.5 * problem.grad(x)
     optimality = CL_optimality(x, g, l, u)
     active = find_active_constraints(x, l, u)
-
-    return info['nfev'], optimality, np.dot(f, f), np.sum(active), ier
+    return info['nfev'], optimality, np.dot(f, f), np.sum(active != 0), ier
 
 
 def run_l_bfgs_b(problem, ftol=1e-5, gtol=1e-3, xtol=None):
@@ -79,7 +79,7 @@ def run_l_bfgs_b(problem, ftol=1e-5, gtol=1e-3, xtol=None):
     g = 0.5 * problem.grad(x)
     optimality = CL_optimality(x, g, l, u)
     active = find_active_constraints(x, l, u)
-    return (info['funcalls'], optimality, obj_value, np.sum(active),
+    return (info['funcalls'], optimality, obj_value, np.sum(active != 0),
             info['warnflag'])
 
 

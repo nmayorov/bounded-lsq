@@ -152,9 +152,12 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
         to variables which aren't on the boundary. This quantity was compared
         with `gtol` during iterations.
     active_mask : ndarray of bool, shape (n,)
-        True means that the corresponding constraint is active at the solution.
+        Each component shows whether the corresponding constraint is active:
+             0 - a constraint is not active.
+            -1 - a lower bound is active.
+             1 - an upper bound is active.
         Very accurate as the algorithm tracks active constraints during
-        iteration.
+        iterations.
     nfev : int
         Number of function evaluations done.
     njac : int
@@ -332,4 +335,4 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
             njac += 1
 
     return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm, nfev,
-                                  njac, nit, 0, active_mask=active_set)
+                                  njac, nit, 0, active_mask=on_bound)
