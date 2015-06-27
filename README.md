@@ -7,7 +7,7 @@ This repository contains algorithms I'm preparing for scipy as part of my GSoC 2
 
 The algorithms is contained in package `bounded_lsq`.
 
-1. `leastsqbound.py` is a wrapper over `scipy.otpimize.leastsq` which does unbounded-to-bounded variables transformation. It is the exact copy from [here](https://github.com/jjhelmus/leastsqbound-scipy), master branch, taken on 25 June 2015, commit 96d5e5acbed717a93e9db3bade21dc0da7851319. The reason for poor performance of this algorithm is explained in this [issue](https://github.com/jjhelmus/leastsqbound-scipy/issues/6) I opened.
+1. `leastsqbound.py` is a wrapper over `scipy.otpimize.leastsq` which does bounded-to-unbounded variables transformation. It is the exact copy from [here](https://github.com/jjhelmus/leastsqbound-scipy), master branch, taken on 27 June 2015, commit 937c67500cf9340c31d5cfbbb274894e3b59bd89. This is the [fixed](https://github.com/jjhelmus/leastsqbound-scipy/pull/7) version and now it works well. 
 2. `dogbox.py` implements a dogleg trust-region algorithm applied to a rectangular trust region. You can read the description in my [blog](https://nmayorov.wordpress.com/2015/06/19/dogbox-algorithm/).
 3. `trf.py` implements a special Trust Region Reflective algorithm which combines several ideas. See the description in my [blog](https://nmayorov.wordpress.com/2015/06/19/trust-region-reflective-algorithm/).
 
