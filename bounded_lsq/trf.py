@@ -10,7 +10,6 @@ from scipy.linalg import svd
 from .bounds import (step_size_to_bound, make_strictly_feasible,
                      check_bounds, CL_scaling)
 from .trust_region import get_intersection, solve_lsq_trust_region
-from .helpers import EPS, check_tolerance, prepare_OptimizeResult
 
 
 def minimize_quadratic(a, b, l, u):
@@ -171,8 +170,7 @@ def find_gradient_step(x, J_h, diag_h, g_h, d, Delta, l, u, theta):
     return -g_stride * g_h
 
 
-def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
-        gtol=EPS**0.5, max_nfev=None, scaling=1.0):
+def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
     """Minimize the sum of squares with bounds on independent variables
     by Trust Region Reflective algorithm [1]_.
 
@@ -294,12 +292,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
            and Theory," Numerical Analysis, ed. G. A. Watson, Lecture Notes
            in Mathematics 630, Springer Verlag, pp. 105-116, 1977.
     """
-    x0 = np.asarray(x0, dtype=float)
-    l, u, feasible = check_bounds(x0, bounds)
-    if not feasible:
-        raise ValueError("`x0` is infeasible.")
-
-    ftol, xtol, gtol = check_tolerance(ftol, xtol, gtol)
+    EPS = np.finfo(float).eps
 
     # We need strictly feasible guess to start with
     x = make_strictly_feasible(x0, l, u, rstep=1e-10)
@@ -307,7 +300,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     f = fun(x)
     nfev = 1
 
-    J = jac(x)
+    J = jac(x, f)
     njac = 1
 
     g = J.T.dot(f)
@@ -331,9 +324,6 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     obj_value = np.dot(f, f)
     alpha = 0.0  # "Levenberg-Marquardt" parameter
 
-    if max_nfev is None:
-        max_nfev = 100 * n
-
     nit = 0
     termination_status = None
     while nfev < max_nfev:
@@ -356,8 +346,8 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
             termination_status = 1
 
         if termination_status is not None:
-            return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
-                                          nfev, njac, nit, termination_status)
+            return (x, f, J, obj_value, g_norm, nfev,
+                    njac, nit, termination_status)
 
         # Jacobian in "hat" space.
         J_h = J * d
@@ -442,8 +432,7 @@ def trf(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
             f = f_new
             obj_value = obj_value_new
 
-            J = jac(x)
+            J = jac(x, f)
             njac += 1
 
-    return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm,
-                                  nfev, njac, nit, 0)
+    return x, f, J, obj_value, g_norm, nfev, njac, nit, 0

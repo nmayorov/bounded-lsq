@@ -6,23 +6,15 @@ import sys
 
 import numpy as np
 from scipy.optimize import fmin_l_bfgs_b
-from bounded_lsq import (trf, dogbox, leastsqbound, CL_optimality,
+from bounded_lsq import (least_squares, leastsqbound, CL_optimality,
                          find_active_constraints, make_strictly_feasible)
 from lsq_problems import extract_lsq_problems
 
 
-def run_dogbox(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
-    result = dogbox(problem.fun, problem.jac, problem.x0,
-                    bounds=problem.bounds, ftol=ftol, gtol=gtol,
-                    xtol=xtol, **kwargs)
-    return (result.nfev, result.optimality, result.obj_value,
-            np.sum(result.active_mask != 0), result.status)
-
-
-def run_trf(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
-    result = trf(problem.fun, problem.jac, problem.x0,
-                 bounds=problem.bounds, ftol=ftol, gtol=gtol,
-                 xtol=xtol, **kwargs)
+def run_least_squares(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
+    result = least_squares(
+        problem.fun, problem.x0, jac=problem.jac,
+        bounds=problem.bounds, ftol=ftol, gtol=gtol, xtol=xtol, **kwargs)
     return (result.nfev, result.optimality, result.obj_value,
             np.sum(result.active_mask != 0), result.status)
 
@@ -84,10 +76,10 @@ def run_l_bfgs_b(problem, ftol=1e-5, gtol=1e-3, xtol=None):
 
 
 METHODS = OrderedDict([
-    ("dogbox", (run_dogbox, dict())),
-    ("dogbox-s", (run_dogbox, dict(scaling='auto'))),
-    ("trf", (run_trf, dict())),
-    ("trf-s", (run_trf, dict(scaling='auto'))),
+    ("dogbox", (run_least_squares, dict(method='dogbox'))),
+    ("dogbox-s", (run_least_squares, dict(method='dogbox', scaling='auto'))),
+    ("trf", (run_least_squares, dict(method='trf'))),
+    ("trf-s", (run_least_squares, dict(method='trf', scaling='auto'))),
     ("leastsq", (run_leastsq_bound, dict())),
     ("leastsq-s", (run_leastsq_bound, dict(scaling='auto'))),
     ("l-bfgs-b", (run_l_bfgs_b, dict())),

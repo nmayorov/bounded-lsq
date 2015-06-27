@@ -3,7 +3,6 @@ from __future__ import division
 import numpy as np
 from numpy.linalg import lstsq, norm
 from .bounds import step_size_to_bound, in_bounds, check_bounds
-from .helpers import EPS, check_tolerance, prepare_OptimizeResult
 
 
 def find_intersection(x, tr_bounds, l, u):
@@ -84,8 +83,7 @@ def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
     return beta * cauchy_step, bound_hits, tr_hit
 
 
-def dogbox(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
-           gtol=EPS**0.5, max_nfev=None, scaling=1.0):
+def dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
     """Minimize the sum of squares with bounds on independent variables
     by rectangular trust-region dogleg algorithm [1]_.
 
@@ -194,17 +192,12 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     .. [2] J. Nocedal and S. J. Wright, "Numerical optimization, 2nd edition",
            Chapter 4.
     """
-    x0 = np.asarray(x0, dtype=float)
-    l, u, feasible = check_bounds(x0, bounds)
-    if not feasible:
-        raise ValueError("`x0` is infeasible.")
-
-    ftol, xtol, gtol = check_tolerance(ftol, xtol, gtol)
+    EPS = np.finfo(float).eps
 
     f = fun(x0)
     nfev = 1
 
-    J = jac(x0)
+    J = jac(x0, f)
     njac = 1
 
     if scaling == 'auto':
@@ -228,10 +221,6 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
     x = x0.copy()
     step = np.empty_like(x0)
     obj_value = np.dot(f, f)
-
-    m, n = J.shape
-    if max_nfev is None:
-        max_nfev = 100 * n
 
     nit = 0
     termination_status = None
@@ -263,9 +252,8 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
                 termination_status = 1
 
         if termination_status is not None:
-            return prepare_OptimizeResult(
-                x, f, J, l, u, obj_value, g_norm, nfev, njac, nit,
-                termination_status, active_mask=active_set)
+            return (x, f, J, obj_value, g_norm,
+                    nfev, njac, nit, termination_status, on_bound)
 
         # Compute (Gauss-)Newton and Cauchy steps
         newton_step = lstsq(J_free, -f)[0]
@@ -331,8 +319,7 @@ def dogbox(fun, jac, x0, bounds=(None, None), ftol=EPS**0.5, xtol=EPS**0.5,
             f = f_new
             obj_value = obj_value_new
 
-            J = jac(x)
+            J = jac(x, f)
             njac += 1
 
-    return prepare_OptimizeResult(x, f, J, l, u, obj_value, g_norm, nfev,
-                                  njac, nit, 0, active_mask=on_bound)
+    return x, f, J, obj_value, g_norm, nfev, njac, nit, 0, on_bound
