@@ -310,7 +310,7 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
         J_norm[J_norm == 0] = 1
         scale = 1 / J_norm
     else:
-        scale = np.asarray(scaling)
+        scale = 1 / np.asarray(scaling)
 
     d_CL, jv = CL_scaling(x, g, l, u)
     Delta = norm(x0 / (scale * d_CL))

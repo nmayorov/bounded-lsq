@@ -205,7 +205,7 @@ def dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
         J_norm[J_norm == 0] = 1
         scale = 1 / J_norm
     else:
-        scale = np.asarray(scaling)
+        scale = 1 / np.asarray(scaling)
 
     if scale.ndim == 0:
         scale = np.full_like(x0, scale)
