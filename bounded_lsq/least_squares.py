@@ -27,11 +27,11 @@ def check_tolerance(ftol, xtol, gtol):
 
 
 TERMINATION_MESSAGES = {
-    0: "The maximum number of function evaluations was exceeded.",
-    1: "`gtol` termination condition was satisfied.",
-    2: "`ftol` termination condition was satisfied.",
-    3: "`xtol` termination condition was satisfied.",
-    4: "Both `ftol` and `xtol` termination conditions were satisfied"
+    0: "The maximum number of function evaluations is exceeded.",
+    1: "`gtol` termination condition is satisfied.",
+    2: "`ftol` termination condition is satisfied.",
+    3: "`xtol` termination condition is satisfied.",
+    4: "Both `ftol` and `xtol` termination conditions are satisfied."
 }
 
 

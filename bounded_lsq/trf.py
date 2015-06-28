@@ -7,8 +7,7 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import svd
 
-from .bounds import (step_size_to_bound, make_strictly_feasible,
-                     check_bounds, CL_scaling)
+from .bounds import step_size_to_bound, make_strictly_feasible, CL_scaling
 from .trust_region import get_intersection, solve_lsq_trust_region
 
 
