@@ -34,7 +34,7 @@ TERMINATION_MESSAGES = {
 }
 
 
-def prepare_OptimizeResult(x, f, J, obj_value, g_norm, nfev, njac, nit,
+def prepare_OptimizeResult(x, f, J, obj_value, g_norm, nfev, njev, nit,
                            status, active_mask):
     r = OptimizeResult()
     r.x = x
@@ -44,7 +44,7 @@ def prepare_OptimizeResult(x, f, J, obj_value, g_norm, nfev, njac, nit,
     r.optimality = g_norm
     r.active_mask = active_mask
     r.nfev = nfev
-    r.njac = njac
+    r.njev = njev
     r.nit = nit
     r.status = status
     r.success = status > 0
@@ -83,13 +83,13 @@ def least_squares(fun, x0, bounds=(None, None), method='trf', jac=None,
     jac = jacobian_wrapper(fun, jac, bounds)
 
     if method == 'trf':
-        x, f, J, obj_value, g_norm, nfev, njac, nit, status = trf(
+        x, f, J, obj_value, g_norm, nfev, njev, nit, status = trf(
             fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling)
         active_mask = find_active_constraints(x, l, u, rtol=xtol)
 
     elif method == 'dogbox':
-        x, f, J, obj_value, g_norm, nfev, njac, nit, status, active_mask = \
+        x, f, J, obj_value, g_norm, nfev, njev, nit, status, active_mask = \
             dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling)
 
-    return prepare_OptimizeResult(x, f, J, obj_value, g_norm, nfev, njac, nit,
+    return prepare_OptimizeResult(x, f, J, obj_value, g_norm, nfev, njev, nit,
                                   status, active_mask)

@@ -301,7 +301,7 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
     nfev = 1
 
     J = jac(x, f)
-    njac = 1
+    njev = 1
 
     g = J.T.dot(f)
     m, n = J.shape
@@ -347,7 +347,7 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
 
         if termination_status is not None:
             return (x, f, J, obj_value, g_norm, nfev,
-                    njac, nit, termination_status)
+                    njev, nit, termination_status)
 
         # Jacobian in "hat" space.
         J_h = J * d
@@ -433,6 +433,6 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
             obj_value = obj_value_new
 
             J = jac(x, f)
-            njac += 1
+            njev += 1
 
-    return x, f, J, obj_value, g_norm, nfev, njac, nit, 0
+    return x, f, J, obj_value, g_norm, nfev, njev, nit, 0
