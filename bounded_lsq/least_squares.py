@@ -27,10 +27,11 @@ def check_tolerance(ftol, xtol, gtol):
 
 
 TERMINATION_MESSAGES = {
-    0: "The maximum number of function evaluations is exceeded.",
-    1: "First order optimality measure is less than `gtol`.",
-    2: "The relative reduction of objective value is less than `ftol`.",
-    3: "The relative step size is less than `xtol`."
+    0: "The maximum number of function evaluations was exceeded.",
+    1: "`gtol` termination condition was satisfied.",
+    2: "`ftol` termination condition was satisfied.",
+    3: "`xtol` termination condition was satisfied.",
+    4: "Both `ftol` and `xtol` termination conditions were satisfied"
 }
 
 

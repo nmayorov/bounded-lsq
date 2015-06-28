@@ -298,13 +298,15 @@ def dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
             elif ratio > 0.75 and tr_hit:
                 Delta *= 2.0
 
-            if abs(actual_reduction) < ftol * obj_value:
-                termination_status = 2
-                break
+            ftol_satisfied = abs(actual_reduction) < ftol * obj_value
+            xtol_satisfied = Delta < xtol * max(EPS**0.5, norm(x / scale, ord=np.inf))
 
-            if Delta < xtol * max(EPS**0.5, norm(x / scale, ord=np.inf)):
+            if ftol_satisfied and xtol_satisfied:
+                termination_status = 4
+            elif ftol_satisfied:
+                termination_status = 2
+            elif xtol_satisfied:
                 termination_status = 3
-                break
 
         if actual_reduction > 0:
             on_bound[free_set] = on_bound_free
