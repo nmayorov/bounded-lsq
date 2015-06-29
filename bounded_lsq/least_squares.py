@@ -225,7 +225,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     Method 'lm' (Levenberg-Marquardt) calls a wrapper over least-squares
     algorithms implemented in MINPACK (lmder, lmdif). It runs
     Levenberg-Marquadrd algorithm formulated as a trust-region type algorithm.
-    The implementation is based on paper [JJMore], it is very robust and
+    The implementation is based on paper [JJMore]_, it is very robust and
     efficient with a lot of smart tricks. It should be your first choice
     for unconstrained problems. Note that it doesn't support bounds.
 
@@ -233,21 +233,21 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     solving the equation, which constitutes the first-order optimality
     condition for a bound-constrained minimization problem as formulated in
     [STIR]_. The algorithm iteratively solves trust-region subproblems
-    augmented by special diagonal quadratic term with trust-region shape determined by
-    the distance from the bounds and the direction of the gradient.
-    This enhancements help not to take steps directly into bounds and explore
-    the whole variable space. To improve convergence speed the reflected from
-    the first bound search direction is considered. To obey theoretical
-    requirements the algorithm keeps iterates strictly feasible. Trust-region
-    subproblems are solved by exact method very similar to one described in
-    [JJMore] and implemented in MINPACK, but with the help of one
-    per iteration singular value decomposition of Jacobian. The algorithm's
-    performance is generally comparable to MINPACK in unbounded case. The
-    algorithm works quite robust in unbounded and bounded problems, thus
-    it is set as default algorithm.
+    augmented by special diagonal quadratic term with trust-region shape
+    determined by the distance from the bounds and the direction of the
+    gradient. This enhancements help not to take steps directly into bounds
+    and explore the whole variable space. To improve convergence speed the
+    reflected from the first bound search direction is considered. To obey
+    theoretical requirements the algorithm keeps iterates strictly feasible.
+    Trust-region subproblems are solved by exact method very similar to one
+    described in [JJMore]_ and implemented in MINPACK, but with the help of
+    one per iteration singular value decomposition of Jacobian.
+    The algorithm's performance is generally comparable to MINPACK in
+    unbounded case. The algorithm works quite robust in unbounded and bounded
+    problems, thus it is chosen as default algorithm.
 
     Method 'dogbox' operates in a trust-region framework, but considers
-    rectangular trust regions as opposed to conventional elliptical.
+    rectangular trust regions as opposed to conventional elliptical [Voglis]_.
     The intersection of the current trust region and initial bounds is again
     rectangular, so on each iteration a quadratic minimization problem subject
     to bounds is solved. Powell's dogleg method [NumOpt]_ is applied to solve
