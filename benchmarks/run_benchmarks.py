@@ -12,9 +12,15 @@ from lsq_problems import extract_lsq_problems
 
 
 def run_least_squares(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
+    l, u = problem.bounds
+    if l is None:
+        l = -np.inf
+    if u is None:
+        u = np.inf
+    bounds = l, u
     result = least_squares(
         problem.fun, problem.x0, jac=problem.jac,
-        bounds=problem.bounds, ftol=ftol, gtol=gtol, xtol=xtol, **kwargs)
+        bounds=bounds, ftol=ftol, gtol=gtol, xtol=xtol, **kwargs)
     return (result.nfev, result.optimality, result.obj_value,
             np.sum(result.active_mask != 0), result.status)
 
@@ -76,12 +82,13 @@ def run_l_bfgs_b(problem, ftol=1e-5, gtol=1e-3, xtol=None):
 
 
 METHODS = OrderedDict([
-    ("dogbox", (run_least_squares, dict(method='dogbox'))),
-    ("dogbox-s", (run_least_squares, dict(method='dogbox', scaling='auto'))),
-    ("trf", (run_least_squares, dict(method='trf'))),
-    ("trf-s", (run_least_squares, dict(method='trf', scaling='auto'))),
-    ("leastsq", (run_leastsq_bound, dict())),
-    ("leastsq-s", (run_leastsq_bound, dict(scaling='auto'))),
+    ("dogbox", (run_least_squares, dict(method='dogbox', scaling=1.0))),
+    ("dogbox-s", (run_least_squares, dict(method='dogbox', scaling='jac'))),
+    ("trf", (run_least_squares, dict(method='trf', scaling=1.0))),
+    ("trf-s", (run_least_squares, dict(method='trf', scaling='jac'))),
+    ("lm", (run_least_squares, dict(method='lm', scaling=1.0))),
+    ("lm-s", (run_least_squares, dict(method='lm', scaling='jac'))),
+    ('leastsqbound', (run_leastsq_bound, dict(scaling=None))),
     ("l-bfgs-b", (run_l_bfgs_b, dict())),
     ]
 )
@@ -157,7 +164,7 @@ def main():
         run_benchmark(u, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
                       methods=methods, benchmark_name="Unbounded problems")
     if args.b:
-        methods = ['dogbox', 'trf', 'leastsq', 'l-bfgs-b']
+        methods = ['dogbox', 'trf', 'leastsqbound', 'l-bfgs-b']
         run_benchmark(b, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
                       methods=methods,  benchmark_name="Bounded problems")
 

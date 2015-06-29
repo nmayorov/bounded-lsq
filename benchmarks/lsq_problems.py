@@ -7,7 +7,7 @@ import inspect
 import sys
 import numpy as np
 from numpy.polynomial.chebyshev import Chebyshev
-from bounded_lsq import find_active_constraints, CL_scaling, check_bounds
+from bounded_lsq import find_active_constraints, CL_scaling, prepare_bounds
 
 
 class LSQBenchmarkProblem(object):
@@ -56,41 +56,6 @@ class LSQBenchmarkProblem(object):
         f = self.fun(x)
         J = self.jac(x)
         return 2 * J.T.dot(f)
-
-    def check_solution(self, x):
-        """Check the solution properties.
-
-        Parameters
-        ----------
-        x : ndarray, shape (n,)
-            Point to test.
-
-        Returns
-        -------
-        g_optimality : float
-            The uniform norm of scaled gradient. Must be close to zero
-            in local minimum. Equivalent to the norm of standard gradient
-            in unconstrained case.
-        active : int
-            Number of active constraints in `x`.
-
-        Notes
-        -----
-        If `x` violates bounds (np.inf, 0) is returned.
-        """
-        l, u, feasible = check_bounds(x, self.bounds)
-
-        if not feasible:
-            return np.inf, 0
-
-        f = self.fun(x)
-        J = self.jac(x)
-        g = J.T.dot(f)
-        d_CL, _ = CL_scaling(x, g, l, u)
-        g_optimality = np.linalg.norm(g * d_CL**2, ord=np.inf)
-        active = find_active_constraints(x, l, u)
-
-        return g_optimality, np.sum(active)
 
 
 class LSQBenchmarkProblemFactory(object):

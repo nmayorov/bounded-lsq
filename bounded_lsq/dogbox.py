@@ -2,7 +2,7 @@ from __future__ import division
 
 import numpy as np
 from numpy.linalg import lstsq, norm
-from .bounds import step_size_to_bound, in_bounds, check_bounds
+from .bounds import step_size_to_bound, in_bounds
 
 
 def find_intersection(x, tr_bounds, l, u):
@@ -200,7 +200,7 @@ def dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
     J = jac(x0, f)
     njev = 1
 
-    if scaling == 'auto':
+    if scaling == 'jac':
         J_norm = np.linalg.norm(J, axis=0)
         J_norm[J_norm == 0] = 1
         scale = 1 / J_norm
@@ -208,7 +208,7 @@ def dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
         scale = 1 / np.asarray(scaling)
 
     if scale.ndim == 0:
-        scale = np.full_like(x0, scale)
+        scale = np.resize(scale, x0.shape)
 
     Delta = np.linalg.norm(x0 / scale, ord=np.inf)
     if Delta == 0:

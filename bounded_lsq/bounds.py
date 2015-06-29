@@ -4,19 +4,16 @@
 import numpy as np
 
 
-def check_bounds(x, bounds):
-    """Prepare bounds for usage in algorithms and check if x within."""
-    l, u = bounds
-    if l is None:
-        l = np.full_like(x, -np.inf)
-    else:
-        l = np.asarray(l, dtype=float)
-    if u is None:
-        u = np.full_like(x, np.inf)
-    else:
-        u = np.asarray(u, dtype=float)
+def prepare_bounds(bounds, n):
+    """Prepare bounds for usage in algorithms."""
+    l, u = [np.asarray(b, dtype=float) for b in bounds]
+    if l.ndim == 0:
+        l = np.resize(l, n)
 
-    return l, u, in_bounds(x, l, u)
+    if u.ndim == 0:
+        u = np.resize(u, n)
+
+    return l, u
 
 
 def in_bounds(x, l, u):

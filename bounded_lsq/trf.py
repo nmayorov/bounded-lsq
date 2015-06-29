@@ -6,7 +6,6 @@ from __future__ import division
 import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import svd
-
 from .bounds import step_size_to_bound, make_strictly_feasible, CL_scaling
 from .trust_region import get_intersection, solve_lsq_trust_region
 
@@ -305,7 +304,7 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
     g = J.T.dot(f)
     m, n = J.shape
 
-    if scaling == 'auto':
+    if scaling == 'jac':
         J_norm = np.linalg.norm(J, axis=0)
         J_norm[J_norm == 0] = 1
         scale = 1 / J_norm
