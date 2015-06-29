@@ -169,126 +169,27 @@ def find_gradient_step(x, J_h, diag_h, g_h, d, Delta, l, u, theta):
 
 
 def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
-    """Minimize the sum of squares with bounds on independent variables
-    by Trust Region Reflective algorithm [1]_.
+    """Minimize the sum of squares of nonlinear functions with bounds on
+    independent variables by Trust Region Reflective algorithm.
 
-    Let f(x) maps from R^n to R^m, the function finds a local minimum of
-    F(x) = ||f(x)||**2 = sum(f_i(x)**2, i = 1, ...,m),
-    subject to bound constraints l <= x <= u
-
-    Parameters
-    ----------
-    fun : callable
-        Returns a 1-D array of residuals of size m.
-    jac : callable
-        Returns an m-by-n array containing partial derivatives of f with
-        respect to x, known as Jacobian matrix.
-    x0 : array-like, shape (n,)
-        Initial guess on the independent variables.
-    bounds : tuple of array-like, optional
-        Lower and upper bounds on independent variables. None means that
-        there is no lower/upper bound on any of the variables. To disable
-        a bound on an individual variable use np.inf with the appropriate
-        sign.
-    ftol : float, optional
-        Tolerance for termination by the change of the objective value.
-        Default is square root of machine epsilon. The optimization process
-        is stopped when ``dF < ftol * F``, where dF is the change of the
-        objective value in the last iteration.
+    Options
+    -------
+    ftol : float
+        The optimization process is stopped when ``dF < ftol * F``, where
+        F is the objective function value (the sum of squares) and dF is its
+        change in the last iteration.
     xtol : float, optional
-        Tolerance for termination by the change of the independent variables.
-        Default is square root of machine epsilon. The optimization process
-        is stopped when ``norm(dx) < xtol * max(EPS**0.5, norm(x))``,
-        where dx is a step taken in the last iteration and EPS is machine
-        epsilon.
+        The optimization process is stopped when
+        ``norm(dx) < xtol * max(EPS**0.5, norm(x))``, where dx is a step taken
+        in the last iteration and EPS is machine epsilon.
     gtol : float, optional
-        Tolerance for termination by the norm of scaled gradient. Default is
-        square root of machine epsilon. The optimization process is stopped
-        when ``norm(g_scaled, ord=np.inf) < gtol``, where g_scaled is
-        properly scaled gradient to account for the presence of bounds as
-        described in [1]_. The scaling imposed by `scaling` parameter
-        (see below) is not considered.
+        The optimization process is stopped when
+        ``norm(g_scaled, ord=np.inf) < gtol``, where g_scaled is properly
+        scaled gradient to account for the presence of bounds.
+        The scaling imposed by `scaling` parameter is not considered.
     max_nfev : None or int, optional
         Maximum number of function evaluations before the termination.
         If None (default), it is assigned to 100 * n.
-    scaling : array-like or 'auto', optional
-        Determines scaling of the variables. Default is 1.0 which means no
-        scaling. A bigger value for some variable means that this variable can
-        change stronger during iterations, compared to other variables.
-        A scalar value won't affect the algorithm (except maybe
-        fixing/introducing numerical problems and changing termination
-        criteria). If 'auto', then scaling is inversely proportional to the
-        norm of Jacobian columns. This concept is irrelevant to scaling
-        suggested in [1]_ for handling the bounds, from the experience it is
-        generally not recommended to use ``scaling=auto`` in bounded problems.
-
-    Returns
-    -------
-    OptimizeResult with the following fields defined.
-    x : ndarray, shape (n,)
-        Found solution.
-    obj_value : float
-        Sum of squares at the solution.
-    fun : ndarray, shape (m,)
-        Vector of residuals at the solution.
-    jac : ndarray, shape (m, n)
-        Jacobian at the solution.
-    optimality : float
-        Firs-order optimality measure. Uniform norm of scaled gradient. This
-        quantity was compared with `gtol` during iterations.
-    active_mask : ndarray of int, shape (n,)
-        Each component shows whether the corresponding constraint is active:
-             0 - a constraint is not active.
-            -1 - a lower bound is active.
-             1 - an upper bound is active.
-        Might be somewhat arbitrary as the algorithm does strictly feasible
-        iterates, thus `active_mask` is determined with tolerance threshold.
-    nfev : int
-        Number of function evaluations done.
-    njac : int
-        Number of Jacobian evaluations done.
-    nit : int
-        Number of main iterations done.
-    status : int
-        Reason for algorithm termination:
-            - 0 - maximum number of function evaluations reached.
-            - 1 - `gtol` convergence test is satisfied.
-            - 2 - `ftol` convergence test is satisfied.
-            - 3 - `xtol` convergence test is satisfied.
-    message : string
-        Verbal description of the termination reason.
-    success : int
-        True if one of the convergence criteria is satisfied.
-
-    Notes
-    -----
-    The algorithm is motivated by the process of solving the equation, which
-    constitutes the first-order optimality condition for a bound-constrained
-    minimization problem as formulated in [1]_. The algorithm iteratively
-    solves trust-region subproblems augmented by special diagonal quadratic
-    term with trust-region shape determined by the distance from the bounds
-    and the direction of the gradient. This enhancements help not to take
-    steps directly into bounds and explore the whole variable space. To
-    improve convergence speed the reflected from the first bound search
-    direction is considered. To obey theoretical requirements the algorithm is
-    making strictly feasible iterates.
-
-    Trust-region subproblems are solved by exact method very similar to one
-    described in [2]_ and implemented in MINPACK, but with the help of one
-    per iteration singular value decomposition of Jacobian. The algorithm's
-    performance is generally comparable to scipy.optimize.leastsq in unbounded
-    case.
-
-    References
-    ----------
-    .. [1] Branch, M.A., T.F. Coleman, and Y. Li, "A Subspace, Interior, and
-           Conjugate Gradient Method for Large-Scale Bound-Constrained
-           Minimization Problems," SIAM Journal on Scientific Computing,
-           Vol. 21, Number 1, pp 1–23, 1999.
-
-    .. [2] More, J. J., "The Levenberg-Marquardt Algorithm: Implementation
-           and Theory," Numerical Analysis, ed. G. A. Watson, Lecture Notes
-           in Mathematics 630, Springer Verlag, pp. 105-116, 1977.
     """
     EPS = np.finfo(float).eps
 
@@ -322,10 +223,8 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
     obj_value = np.dot(f, f)
     alpha = 0.0  # "Levenberg-Marquardt" parameter
 
-    nit = 0
     termination_status = None
     while nfev < max_nfev:
-        nit += 1
         if scaling == 'auto':
             J_norm = np.linalg.norm(J, axis=0)
             with np.errstate(divide='ignore'):
@@ -344,8 +243,7 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
             termination_status = 1
 
         if termination_status is not None:
-            return (x, f, J, obj_value, g_norm, nfev,
-                    njev, nit, termination_status)
+            return x, f, J, obj_value, g_norm, nfev, njev, termination_status
 
         # Jacobian in "hat" space.
         J_h = J * d
@@ -435,4 +333,4 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
             J = jac(x, f)
             njev += 1
 
-    return x, f, J, obj_value, g_norm, nfev, njev, nit, 0
+    return x, f, J, obj_value, g_norm, nfev, njev, 0
