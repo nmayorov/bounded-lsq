@@ -11,17 +11,23 @@ from bounded_lsq import (least_squares, leastsqbound, CL_optimality,
 from lsq_problems import extract_lsq_problems
 
 
-def run_least_squares(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3, **kwargs):
+def run_least_squares(problem, ftol, xtol, gtol, jac, **kwargs):
     l, u = problem.bounds
     if l is None:
         l = -np.inf
     if u is None:
         u = np.inf
     bounds = l, u
-    result = least_squares(
-        problem.fun, problem.x0, jac=problem.jac,
-        bounds=bounds, ftol=ftol, gtol=gtol, xtol=xtol, **kwargs)
-    return (result.nfev, result.optimality, result.obj_value,
+    if jac == 'exact':
+        jac = problem.jac
+
+    result = least_squares(problem.fun, problem.x0, jac=jac, bounds=bounds,
+                           ftol=ftol, gtol=gtol, xtol=xtol, **kwargs)
+    x = result.x
+    g = 0.5 * problem.grad(x)
+    optimality = CL_optimality(result.x, g, l, u)
+
+    return (result.nfev, optimality, result.obj_value,
             np.sum(result.active_mask != 0), result.status)
 
 
@@ -47,7 +53,7 @@ def scipy_bounds(problem):
     return bounds, l, u
 
 
-def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
+def run_leastsq_bound(problem, ftol, xtol, gtol, jac,
                       scaling=None, **kwargs):
     bounds, l, u = scipy_bounds(problem)
 
@@ -56,9 +62,14 @@ def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
     else:
         diag = None
 
+    if jac in ['2-point', '3-point']:
+        jac = None
+    else:
+        jac = problem.jac
+
     x, cov_x, info, mesg, ier = leastsqbound(
         problem.fun, problem.x0, bounds=bounds, full_output=True,
-        Dfun=problem.jac, ftol=ftol, xtol=xtol, gtol=gtol, diag=diag, **kwargs
+        Dfun=jac, ftol=ftol, xtol=xtol, gtol=gtol, diag=diag, **kwargs
     )
     x = make_strictly_feasible(x, l, u)
     f = problem.fun(x)
@@ -68,12 +79,18 @@ def run_leastsq_bound(problem, ftol=1e-5, xtol=1e-5, gtol=1e-3,
     return info['nfev'], optimality, np.dot(f, f), np.sum(active != 0), ier
 
 
-def run_l_bfgs_b(problem, ftol=1e-5, gtol=1e-3, xtol=None):
+def run_l_bfgs_b(problem, ftol, gtol, xtol, jac):
     bounds, l, u = scipy_bounds(problem)
     factr = ftol / np.finfo(float).eps
+    if jac in ['2-point', '3-point']:
+        grad = None
+        approx_grad = True
+    else:
+        grad = problem.grad
+        approx_grad = False
     x, obj_value, info = fmin_l_bfgs_b(
-        problem.obj_value, problem.x0, fprime=problem.grad, bounds=bounds,
-        m=100, factr=factr, pgtol=gtol, iprint=-1)
+        problem.obj_value, problem.x0, fprime=grad, bounds=bounds,
+        approx_grad=approx_grad, m=100, factr=factr, pgtol=gtol, iprint=-1)
     g = 0.5 * problem.grad(x)
     optimality = CL_optimality(x, g, l, u)
     active = find_active_constraints(x, l, u)
@@ -94,7 +111,7 @@ METHODS = OrderedDict([
 )
 
 
-def run_benchmark(problems, ftol=1e-5, xtol=1e-5, gtol=1e-3,
+def run_benchmark(problems, ftol, xtol, gtol, jac,
                   methods=None, benchmark_name=None):
     header = "{:<25} {:<5} {:<5} {:<15} {:<5} {:<10} {:<10} {:<8} {:<8}".\
         format("problem", "n", "m", "solver", "nfev", "g norm",
@@ -120,7 +137,7 @@ def run_benchmark(problems, ftol=1e-5, xtol=1e-5, gtol=1e-3,
         for method_name in methods:
             used_methods.append(method_name)
             method, kwargs = METHODS[method_name]
-            result = method(problem, ftol=ftol, xtol=xtol, gtol=gtol, **kwargs)
+            result = method(problem, ftol, xtol, gtol, jac, **kwargs)
             results.append(result)
 
         for i, (method_name, result) in enumerate(zip(used_methods, results)):
@@ -142,6 +159,8 @@ def parse_arguments():
     tol = np.finfo(float).eps**0.5
     parser = argparse.ArgumentParser()
     parser.add_argument("output", nargs='?', type=str, help="Output file.")
+    parser.add_argument("-jac", choices=['exact', '2-point', '3-point'],
+                        default='exact', help="How to compute Jacobian.")
     parser.add_argument("-u", action='store_true', help="Benchmark unbounded")
     parser.add_argument("-b", action='store_true', help="Benchmark bounded.")
     parser.add_argument("-ftol", type=float, default=tol)
@@ -161,11 +180,11 @@ def main():
         args.b = True
     if args.u:
         methods = None
-        run_benchmark(u, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
+        run_benchmark(u, args.ftol, args.xtol, args.gtol, args.jac,
                       methods=methods, benchmark_name="Unbounded problems")
     if args.b:
         methods = ['dogbox', 'trf', 'leastsqbound', 'l-bfgs-b']
-        run_benchmark(b, ftol=args.ftol, xtol=args.xtol, gtol=args.gtol,
+        run_benchmark(b, args.ftol, args.xtol, args.gtol, args.jac,
                       methods=methods,  benchmark_name="Bounded problems")
 
 

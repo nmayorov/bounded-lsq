@@ -119,5 +119,7 @@ def CL_scaling(x, g, l, u):
 
 
 def CL_optimality(x, g, l, u):
+    l = np.resize(l, x.shape)
+    u = np.resize(u, x.shape)
     d, _ = CL_scaling(x, g, l, u)
     return np.linalg.norm(d**2 * g, ord=np.inf)

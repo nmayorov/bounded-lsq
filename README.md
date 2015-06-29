@@ -19,12 +19,12 @@ Run benchmarks from `benchmarks/run_benchmarks.py`. The default usage
 python run_benchmarks.py
 ```
 
-runs all benchmarks with default tolerance parameters and prints to stdout.  
+runs all benchmarks with default tolerance parameters, analytical Jacobian and prints to stdout.  
 
-The following example command run only bounded problems with custom tolerance settings and prints the result into a file: 
+The following example command run only bounded problems with custom tolerance settings using 2-point numerical Jacobian approximation and prints the result into a file: 
 
 ```
-python run_benchmarks.py report.txt -b -ftol 1e-12 -xtol 1e-12 -gtol 1e-8 
+python run_benchmarks.py report.txt -b -ftol 1e-12 -xtol 1e-12 -gtol 1e-8 -jac 2-point 
 ```
 
 Run `python run_benchmarks.py --help` to see full parameters signature.
