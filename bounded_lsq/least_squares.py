@@ -267,7 +267,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     .. [STIR] Branch, M.A., T.F. Coleman, and Y. Li, "A Subspace, Interior,
               and Conjugate Gradient Method for Large-Scale Bound-Constrained
               Minimization Problems," SIAM Journal on Scientific Computing,
-              Vol. 21, Number 1, pp 1–23, 1999.
+              Vol. 21, Number 1, pp 1-23, 1999.
     .. [Voglis] C. Voglis and I. E. Lagaris, "A Rectangular Trust Region
                 Dogleg Approach for Unconstrained and Bound Constrained
                 Nonlinear Optimization", WSEAS International Conference on
