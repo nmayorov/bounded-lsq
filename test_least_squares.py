@@ -1,7 +1,9 @@
 import numpy as np
-from numpy.testing import run_module_suite, assert_, assert_allclose, TestCase
+from numpy.testing import (run_module_suite, assert_, assert_allclose, TestCase,
+                           assert_raises)
 
-from least_squares import least_squares
+from bounded_lsq import least_squares
+
 
 def f11(x, a=0.):
     return (x - a)**2 + 5.
@@ -89,7 +91,7 @@ class TestTRF(BaseMixin, BoundsMixin, TestCase):
     meth = 'trf'
 
 
-class TestLM(Base, TestCase):
+class TestLM(BaseMixin, TestCase):
     meth = 'lm'
 
     ### TODO: test that options['epsfcn'] raises TypeError
@@ -100,6 +102,11 @@ class TestLM(Base, TestCase):
 # One-off tests which do not need parameterization or are method-specific
 #
 def test_basic():
+
+
+    import pdb; pdb.set_trace()
+
+
     # test that 'method' arg is really optional
     res = least_squares(f11, 2.)
     assert_allclose(res.x, 0.)
