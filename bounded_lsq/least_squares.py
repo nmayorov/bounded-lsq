@@ -166,7 +166,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         Determines the step size for finite difference Jacobian approximation.
         The actual step is computed as ``x * diff_step``. If None (default),
         `diff_step` is assigned to a conventional "optimal" power of machine
-        epsilon depending on finite difference approximation method [Press].
+        epsilon depending on finite difference approximation method [NR]_.
     args, kwargs : tuple and dict, optional
         Additional arguments passed to `fun` and `jac`. Both empty by default.
         The calling signature is ``fun(x, *args, **kwargs)``. When
@@ -259,19 +259,21 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
 
     References
     ----------
-    [JJMore] More, J. J., "The Levenberg-Marquardt Algorithm: Implementation
-             and Theory," Numerical Analysis, ed. G. A. Watson, Lecture Notes
-             in Mathematics 630, Springer Verlag, pp. 105-116, 1977.
-    [STIR] Branch, M.A., T.F. Coleman, and Y. Li, "A Subspace, Interior, and
-           Conjugate Gradient Method for Large-Scale Bound-Constrained
-           Minimization Problems," SIAM Journal on Scientific Computing,
-           Vol. 21, Number 1, pp 1–23, 1999.
-    [Voglis] C. Voglis and I. E. Lagaris, "A Rectangular Trust Region Dogleg
-             Approach for Unconstrained and Bound Constrained Nonlinear
-             Optimization", WSEAS International Conference on Applied
-             Mathematics, Corfu, Greece, 2004.
-    [NumOpt] J. Nocedal and S. J. Wright, "Numerical optimization,
-             2nd edition", Chapter 4.
+    .. [NR] William H. Press et. al. "Numerical Recipes. The Art of Scientific
+            Computing. 3rd edition", sec. 5.7
+    .. [JJMore] More, J. J., "The Levenberg-Marquardt Algorithm: Implementation
+                and Theory," Numerical Analysis, ed. G. A. Watson, Lecture Notes
+                in Mathematics 630, Springer Verlag, pp. 105-116, 1977.
+    .. [STIR] Branch, M.A., T.F. Coleman, and Y. Li, "A Subspace, Interior,
+              and Conjugate Gradient Method for Large-Scale Bound-Constrained
+              Minimization Problems," SIAM Journal on Scientific Computing,
+              Vol. 21, Number 1, pp 1–23, 1999.
+    .. [Voglis] C. Voglis and I. E. Lagaris, "A Rectangular Trust Region
+                Dogleg Approach for Unconstrained and Bound Constrained
+                Nonlinear Optimization", WSEAS International Conference on
+                Applied Mathematics, Corfu, Greece, 2004.
+    .. [NumOpt] J. Nocedal and S. J. Wright, "Numerical optimization,
+                2nd edition", Chapter 4.
     """
 
     if method not in ['trf', 'dogbox', 'lm']:
