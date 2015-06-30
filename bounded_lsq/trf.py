@@ -168,7 +168,7 @@ def find_gradient_step(x, J_h, diag_h, g_h, d, Delta, l, u, theta):
     return -g_stride * g_h
 
 
-def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
+def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
     """Minimize the sum of squares of nonlinear functions with bounds on
     independent variables by Trust Region Reflective algorithm.
 
@@ -194,7 +194,7 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
     EPS = np.finfo(float).eps
 
     # We need strictly feasible guess to start with
-    x = make_strictly_feasible(x0, l, u, rstep=1e-10)
+    x = make_strictly_feasible(x0, lb, ub, rstep=1e-10)
 
     f = fun(x)
     nfev = 1
@@ -212,7 +212,7 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
     else:
         scale = 1 / np.asarray(scaling)
 
-    d_CL, jv = CL_scaling(x, g, l, u)
+    d_CL, jv = CL_scaling(x, g, lb, ub)
     Delta = norm(x0 / (scale * d_CL))
     if Delta == 0:
         Delta = 1.0
@@ -233,7 +233,7 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
         g = J.T.dot(f)
 
         # Compute Coleman-Li scaling parameters and "hat" variables.
-        d_CL, jv = CL_scaling(x, g, l, u)
+        d_CL, jv = CL_scaling(x, g, lb, ub)
         d = d_CL * scale
         g_h = d * g
         diag_h = g * jv * scale**2
@@ -270,16 +270,16 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
                 n, m, uf, s, V, Delta, initial_alpha=alpha)
             p = d * p_h
 
-            to_bound, _ = step_size_to_bound(x, p, l, u)
+            to_bound, _ = step_size_to_bound(x, p, lb, ub)
             if to_bound >= 1:  # Trust region step is feasible.
                 # Still step back from the bounds
                 p_h *= min(theta * to_bound, 1)
                 steps_h = np.atleast_2d(p_h)
             else:  # Otherwise consider a reflected and gradient steps.
                 p_h, r_h = find_reflected_step(x, J_h, diag_h, g_h, p, p_h,
-                                               d, Delta, l, u, theta)
+                                               d, Delta, lb, ub, theta)
                 c_h = find_gradient_step(x, J_h, diag_h, g_h,
-                                         d, Delta, l, u, theta)
+                                         d, Delta, lb, ub, theta)
                 steps_h = np.array([p_h, r_h, c_h])
 
             qp_values = evaluate_quadratic_function(J_h, diag_h, g_h, steps_h)
@@ -290,7 +290,7 @@ def trf(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
             predicted_reduction = -2 * qp_values[min_index]
 
             step = d * step_h
-            x_new = make_strictly_feasible(x + step, l, u)
+            x_new = make_strictly_feasible(x + step, lb, ub)
 
             f_new = fun(x_new)
             nfev += 1

@@ -83,7 +83,7 @@ def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
     return beta * cauchy_step, bound_hits, tr_hit
 
 
-def dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
+def dogbox(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
     """Minimize the sum of squares of nonlinear functions with bounds on
     independent variables by dogleg method applied to a rectangular trust
     region.
@@ -133,8 +133,8 @@ def dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
         Delta = 1.0
 
     on_bound = np.zeros_like(x0, dtype=int)
-    on_bound[np.equal(x0, l)] = -1
-    on_bound[np.equal(x0, u)] = 1
+    on_bound[np.equal(x0, lb)] = -1
+    on_bound[np.equal(x0, ub)] = 1
 
     x = x0.copy()
     step = np.empty_like(x0)
@@ -155,8 +155,8 @@ def dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
         J_free = J[:, free_set]
         g_free = g[free_set]
         x_free = x[free_set]
-        l_free = l[free_set]
-        u_free = u[free_set]
+        l_free = lb[free_set]
+        u_free = ub[free_set]
         scale_free = scale[free_set]
 
         if np.all(active_set):
@@ -230,9 +230,9 @@ def dogbox(fun, jac, x0, l, u, ftol, xtol, gtol, max_nfev, scaling):
             x = x_new
             # Set variables exactly at the boundary.
             mask = on_bound == -1
-            x[mask] = l[mask]
+            x[mask] = lb[mask]
             mask = on_bound == 1
-            x[mask] = u[mask]
+            x[mask] = ub[mask]
 
             f = f_new
             obj_value = obj_value_new

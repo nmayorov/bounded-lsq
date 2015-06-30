@@ -33,29 +33,29 @@ def run_least_squares(problem, ftol, xtol, gtol, jac, **kwargs):
 
 def scipy_bounds(problem):
     n = problem.x0.shape[0]
-    l, u = problem.bounds
-    if l is None:
-        l = np.full(n, -np.inf)
+    lb, ub = problem.bounds
+    if lb is None:
+        lb = np.full(n, -np.inf)
     else:
-        l = np.asarray(l)
-    if u is None:
-        u = np.full(n, np.inf)
+        lb = np.asarray(lb)
+    if ub is None:
+        ub = np.full(n, np.inf)
     else:
-        u = np.asarray(u)
+        ub = np.asarray(ub)
 
     bounds = []
-    for li, ui in zip(l, u):
+    for li, ui in zip(lb, ub):
         if li == -np.inf:
             li = None
         if ui == np.inf:
             ui = None
         bounds.append((li, ui))
-    return bounds, l, u
+    return bounds, lb, ub
 
 
 def run_leastsq_bound(problem, ftol, xtol, gtol, jac,
                       scaling=None, **kwargs):
-    bounds, l, u = scipy_bounds(problem)
+    bounds, lb, ub = scipy_bounds(problem)
 
     if scaling is None:
         diag = np.ones_like(problem.x0)
@@ -71,11 +71,11 @@ def run_leastsq_bound(problem, ftol, xtol, gtol, jac,
         problem.fun, problem.x0, bounds=bounds, full_output=True,
         Dfun=jac, ftol=ftol, xtol=xtol, gtol=gtol, diag=diag, **kwargs
     )
-    x = make_strictly_feasible(x, l, u)
+    x = make_strictly_feasible(x, lb, ub)
     f = problem.fun(x)
     g = 0.5 * problem.grad(x)
-    optimality = CL_optimality(x, g, l, u)
-    active = find_active_constraints(x, l, u)
+    optimality = CL_optimality(x, g, lb, ub)
+    active = find_active_constraints(x, lb, ub)
     return info['nfev'], optimality, np.dot(f, f), np.sum(active != 0), ier
 
 

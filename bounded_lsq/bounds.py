@@ -6,22 +6,22 @@ import numpy as np
 
 def prepare_bounds(bounds, n):
     """Prepare bounds for usage in algorithms."""
-    l, u = [np.asarray(b, dtype=float) for b in bounds]
-    if l.ndim == 0:
-        l = np.resize(l, n)
+    lb, ub = [np.asarray(b, dtype=float) for b in bounds]
+    if lb.ndim == 0:
+        lb = np.resize(lb, n)
 
-    if u.ndim == 0:
-        u = np.resize(u, n)
+    if ub.ndim == 0:
+        ub = np.resize(ub, n)
 
-    return l, u
+    return lb, ub
 
 
-def in_bounds(x, l, u):
+def in_bounds(x, lb, ub):
     """Check if the point lies within the bounds."""
-    return np.all((x >= l) & (x <= u))
+    return np.all((x >= lb) & (x <= ub))
 
 
-def step_size_to_bound(x, d, l, u):
+def step_size_to_bound(x, d, lb, ub):
     """Compute a step size required to reach the bounds.
 
     The function computes a positive scalar t, such that x + t * d is on
@@ -42,13 +42,13 @@ def step_size_to_bound(x, d, l, u):
     d_nz = d[non_zero]
     steps = np.full_like(x, np.inf)
     with np.errstate(over='ignore'):
-        steps[non_zero] = np.maximum((l - x)[non_zero] / d_nz,
-                                     (u - x)[non_zero] / d_nz)
+        steps[non_zero] = np.maximum((lb - x)[non_zero] / d_nz,
+                                     (ub - x)[non_zero] / d_nz)
     step = np.min(steps)
     return step, np.equal(steps, step) * np.sign(d).astype(int)
 
 
-def find_active_constraints(x, l, u, rtol=1e-12):
+def find_active_constraints(x, lb, ub, rtol=1e-12):
     """Determine which constraints are active in the given point.
 
     The threshold is computed using `rtol` and the absolute value of the
@@ -64,19 +64,19 @@ def find_active_constraints(x, l, u, rtol=1e-12):
     """
     active = np.zeros_like(x, dtype=int)
 
-    lower_dist = x - l
-    upper_dist = u - x
+    lower_dist = x - lb
+    upper_dist = ub - x
 
     mask = lower_dist < upper_dist
-    value = lower_dist[mask] < rtol * np.maximum(1, np.abs(l[mask]))
+    value = lower_dist[mask] < rtol * np.maximum(1, np.abs(lb[mask]))
     active[mask] = -value.astype(int)
-    value = upper_dist[~mask] < rtol * np.maximum(1, np.abs(u[~mask]))
+    value = upper_dist[~mask] < rtol * np.maximum(1, np.abs(ub[~mask]))
     active[~mask] = value.astype(int)
 
     return active
 
 
-def make_strictly_feasible(x, l, u, rstep=0):
+def make_strictly_feasible(x, lb, ub, rstep=0):
     """Shift the point in the slightest possible way to the interior.
 
     If ``rstep=0`` the function uses np.nextafter, otherwise `rstep` is
@@ -88,38 +88,38 @@ def make_strictly_feasible(x, l, u, rstep=0):
     """
     x_new = x.copy()
 
-    m = x <= l
+    m = x <= lb
     if rstep == 0:
-        x_new[m] = np.nextafter(l[m], u[m])
+        x_new[m] = np.nextafter(lb[m], ub[m])
     else:
-        x_new[m] = l[m] + rstep * (1 + np.abs(l[m]))
+        x_new[m] = lb[m] + rstep * (1 + np.abs(lb[m]))
 
-    m = x >= u
+    m = x >= ub
     if rstep == 0:
-        x_new[m] = np.nextafter(u[m], l[m])
+        x_new[m] = np.nextafter(ub[m], lb[m])
     else:
-        x_new[m] = u[m] - rstep * (1 + np.abs(u[m]))
+        x_new[m] = ub[m] - rstep * (1 + np.abs(ub[m]))
 
     return x_new
 
 
-def CL_scaling(x, g, l, u):
+def CL_scaling(x, g, lb, ub):
     """Compute a scaling vector and its derivatives as described in papers
     of Coleman and Li."""
     d = np.ones_like(x)
     jv = np.zeros_like(x)
-    mask = (g < 0) & np.isfinite(u)
-    d[mask] = u[mask] - x[mask]
+    mask = (g < 0) & np.isfinite(ub)
+    d[mask] = ub[mask] - x[mask]
     jv[mask] = -1
-    mask = (g > 0) & np.isfinite(l)
-    d[mask] = x[mask] - l[mask]
+    mask = (g > 0) & np.isfinite(lb)
+    d[mask] = x[mask] - lb[mask]
     jv[mask] = 1
 
     return d**0.5, jv
 
 
-def CL_optimality(x, g, l, u):
-    l = np.resize(l, x.shape)
-    u = np.resize(u, x.shape)
-    d, _ = CL_scaling(x, g, l, u)
+def CL_optimality(x, g, lb, ub):
+    lb = np.resize(lb, x.shape)
+    ub = np.resize(ub, x.shape)
+    d, _ = CL_scaling(x, g, lb, ub)
     return np.linalg.norm(d**2 * g, ord=np.inf)

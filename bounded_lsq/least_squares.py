@@ -104,7 +104,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
 
     Let f(x) maps from R^n to R^m, the function finds a local minimum of
     F(x) = ||f(x)||**2 = sum(f_i(x)**2, i = 1, ..., m),
-    subject to bound constraints l <= x <= u
+    subject to bound constraints lb <= x <= ub
 
     Parameters
     ----------
@@ -287,12 +287,12 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     if x0.ndim > 1:
         raise ValueError("`x0` must be at most 1-dimensional.")
 
-    l, u = prepare_bounds(bounds, x0.size)
+    lb, ub = prepare_bounds(bounds, x0.size)
 
-    if l.shape != x0.shape or u.shape != x0.shape:
+    if lb.shape != x0.shape or ub.shape != x0.shape:
         raise ValueError("Inconsistent shapes between bounds and `x0`.")
 
-    bounded = not np.all((l == -np.inf) & (u == np.inf))
+    bounded = not np.all((lb == -np.inf) & (ub == np.inf))
 
     if method == 'lm' and bounded:
         raise ValueError("Method 'lm' doesn't support bounds.")
@@ -344,7 +344,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         return prepare_OptimizeResult(x, f, J, obj_value, g_norm,
                                       nfev, njev, status, active_mask, cov_x)
 
-    if not in_bounds(x0, l, u):
+    if not in_bounds(x0, lb, ub):
         raise ValueError("`x0` is infeasible.")
 
     if max_nfev is None:
@@ -361,13 +361,13 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
 
     if method == 'trf':
         x, f, J, obj_value, g_norm, nfev, njev, status = trf(
-            fun_wrapped, jac_wrapped, x0, l, u,
+            fun_wrapped, jac_wrapped, x0, lb, ub,
             ftol, xtol, gtol, max_nfev, scaling)
-        active_mask = find_active_constraints(x, l, u, rtol=xtol)
+        active_mask = find_active_constraints(x, lb, ub, rtol=xtol)
 
     elif method == 'dogbox':
         x, f, J, obj_value, g_norm, nfev, njev, status, active_mask = \
-            dogbox(fun_wrapped, jac_wrapped, x0, l, u,
+            dogbox(fun_wrapped, jac_wrapped, x0, lb, ub,
                    ftol, xtol, gtol, max_nfev, scaling)
 
     return prepare_OptimizeResult(x, f, J, obj_value, g_norm, nfev, njev,
