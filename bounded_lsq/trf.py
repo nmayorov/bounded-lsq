@@ -175,9 +175,11 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
     Options
     -------
     ftol : float
-        The optimization process is stopped when ``dF < ftol * F``, where
-        F is the objective function value (the sum of squares) and dF is its
-        change in the last iteration.
+        The optimization process is stopped when ``dF < ftol * F`` and
+        dF_actual / dF_predicted > 0.25, where F is the objective function
+        value (the sum of squares), dF_actual is its change in the last
+        iteration, dF_predicted is predicted change from a local quadratic
+        model.
     xtol : float, optional
         The optimization process is stopped when
         ``norm(dx) < xtol * max(EPS**0.5, norm(x))``, where dx is a step taken
@@ -265,7 +267,7 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
         # In the following: p - trust-region solution, r - reflected solution,
         # c - minimizer along the scaled gradient, _h means the variable
         # is computed in "hat" space.
-        while nfev < max_nfev and actual_reduction < 0:
+        while actual_reduction <= 0 and nfev < max_nfev:
             p_h, alpha, n_iter = solve_lsq_trust_region(
                 n, m, uf, s, V, Delta, initial_alpha=alpha)
             p = d * p_h
@@ -315,7 +317,8 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
                 Delta *= 2.0
                 alpha *= 0.5
 
-            ftol_satisfied = abs(actual_reduction) < ftol * obj_value
+            ftol_satisfied = (abs(actual_reduction) < ftol * obj_value and
+                              ratio > 0.25)
             xtol_satisfied = norm(step) < xtol * max(EPS**0.5, norm(x))
 
             if ftol_satisfied and xtol_satisfied:
@@ -324,6 +327,8 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
                 termination_status = 2
             elif xtol_satisfied:
                 termination_status = 3
+            if termination_status is not None:
+                break
 
         if actual_reduction > 0:
             x = x_new

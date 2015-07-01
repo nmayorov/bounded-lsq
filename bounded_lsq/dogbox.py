@@ -91,9 +91,11 @@ def dogbox(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
     Options
     -------
     ftol : float
-        The optimization process is stopped when ``dF < ftol * F``, where
-        F is the objective function value (the sum of squares) and dF is its
-        change in the last iteration.
+        The optimization process is stopped when ``dF < ftol * F`` and
+        dF_actual / dF_predicted > 0.25, where F is the objective function
+        value (the sum of squares), dF_actual is its change in the last
+        iteration, dF_predicted is predicted change from a local quadratic
+        model.
     xtol : float
         The optimization process is stopped when
         ``Delta < xtol * max(EPS**0.5, norm(scaled_x))``, where Delta is a
@@ -177,7 +179,7 @@ def dogbox(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
         cauchy_step = -np.dot(g_free, g_free) / np.dot(Jg, Jg) * g_free
 
         actual_reduction = -1.0
-        while actual_reduction < 0 and nfev < max_nfev:
+        while actual_reduction <= 0 and nfev < max_nfev:
             tr_bounds = Delta * scale_free
 
             step_free, on_bound_free, tr_hit = dogleg_step(
@@ -214,8 +216,10 @@ def dogbox(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
             elif ratio > 0.75 and tr_hit:
                 Delta *= 2.0
 
-            ftol_satisfied = abs(actual_reduction) < ftol * obj_value
-            xtol_satisfied = Delta < xtol * max(EPS**0.5, norm(x / scale, ord=np.inf))
+            ftol_satisfied = (abs(actual_reduction) < ftol * obj_value and
+                              ratio > 0.25)
+            xtol_satisfied = Delta < xtol * max(EPS**0.5,
+                                                norm(x / scale, ord=np.inf))
 
             if ftol_satisfied and xtol_satisfied:
                 termination_status = 4
@@ -223,6 +227,8 @@ def dogbox(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
                 termination_status = 2
             elif xtol_satisfied:
                 termination_status = 3
+            if termination_status is not None:
+                break
 
         if actual_reduction > 0:
             on_bound[free_set] = on_bound_free
