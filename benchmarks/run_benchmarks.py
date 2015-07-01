@@ -5,11 +5,11 @@ from collections import OrderedDict
 import sys
 
 import numpy as np
-from scipy.optimize import fmin_l_bfgs_b
+from scipy.optimize import fmin_l_bfgs_b, leastsq
 from bounded_lsq import (least_squares, leastsqbound, CL_optimality,
                          find_active_constraints, make_strictly_feasible)
 from lsq_problems import extract_lsq_problems
-
+from math import sin, cos
 
 def run_least_squares(problem, ftol, xtol, gtol, jac, **kwargs):
     l, u = problem.bounds

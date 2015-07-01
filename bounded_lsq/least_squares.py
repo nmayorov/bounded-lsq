@@ -85,14 +85,30 @@ def call_leastsq(fun, x0, jac, ftol, xtol, gtol, max_nfev, scaling,
 
     if scaling == 'jac':
         scaling = None
-    elif scaling is not None:
-        scaling = np.asarray(scaling)
-        if scaling.ndim == 0:
-            scaling = np.resize(scaling, x0.shape)
 
     return leastsq(fun, x0, args=args, Dfun=jac, full_output=True,
                    ftol=ftol, xtol=xtol, gtol=gtol, maxfev=max_nfev,
                    epsfcn=epsfcn, diag=scaling, **options)
+
+
+def check_scaling(scaling, x0):
+    if scaling == 'jac':
+        return scaling
+    try:
+        scaling = np.asarray(scaling, dtype=float)
+    except ValueError:
+        raise ValueError("`scaling` must be 'jac' or array-like with numbers.")
+
+    if np.any(scaling <= 0):
+        raise ValueError("`scaling` must contain only positive values.")
+
+    if scaling.ndim == 0:
+        scaling = np.resize(scaling, x0.shape)
+
+    if scaling.shape != x0.shape:
+        raise ValueError("Inconsistent shapes between `scaling` and `x0`.")
+
+    return scaling
 
 
 def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
@@ -275,44 +291,41 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     .. [NumOpt] J. Nocedal and S. J. Wright, "Numerical optimization,
                 2nd edition", Chapter 4.
     """
-
     if method not in ['trf', 'dogbox', 'lm']:
         raise ValueError("`method` must be 'trf', 'dogbox' or 'lm'.")
 
     if len(bounds) != 2:
         raise ValueError("`bounds` must contain 2 elements.")
 
-    x0 = np.asarray(x0, dtype=float)
+    x0 = np.atleast_1d(x0)
+    x0 = x0.astype(float)
 
     if x0.ndim > 1:
         raise ValueError("`x0` must be at most 1-dimensional.")
 
-    lb, ub = prepare_bounds(bounds, x0.size)
+    lb, ub = prepare_bounds(bounds, x0)
 
     if lb.shape != x0.shape or ub.shape != x0.shape:
         raise ValueError("Inconsistent shapes between bounds and `x0`.")
 
     bounded = not np.all((lb == -np.inf) & (ub == np.inf))
 
-    if method == 'lm' and bounded:
-        raise ValueError("Method 'lm' doesn't support bounds.")
+    if method == 'lm':
+        if bounded:
+            raise ValueError("Method 'lm' doesn't support bounds.")
+
+        if len(kwargs) > 0:
+            raise ValueError("Method 'lm' doesn't support kwargs.")
 
     if jac not in ['2-point', '3-point'] and not callable(jac):
         raise ValueError("`jac` must be '2-point', '3-point' or callable.")
 
-    if scaling != 'jac':
-        scaling = np.asarray(scaling)
-        if np.any(scaling <= 0):
-            raise ValueError("`scaling` must be None, 'jac', "
-                             "or array-like with positive elements.")
+    scaling = check_scaling(scaling, x0)
 
     ftol, xtol, gtol = check_tolerance(ftol, xtol, gtol)
 
     # Handle 'lm' separately
     if method == 'lm':
-        if len(kwargs) > 0:
-            warn("Method 'lm' can't use `kwargs`.")
-
         x, cov_x, info, message, status = call_leastsq(
             fun, x0, jac, ftol, xtol, gtol, max_nfev,
             scaling, diff_step, args, options)
@@ -322,6 +335,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
             J = jac(x, *args)
         else:
             J = approx_derivative(fun, x, args=args)
+        J = np.atleast_2d(J)
         obj_value = np.dot(f, f)
 
         # According to MINPACK compute optimality as
@@ -348,27 +362,27 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         raise ValueError("`x0` is infeasible.")
 
     if max_nfev is None:
-        max_nfev = x0.shape[0] * 100
+        max_nfev = x0.size * 100
 
-    fun_wrapped = lambda x: fun(x, *args, **kwargs)
+    fun_wrapped = lambda x: np.atleast_1d(fun(x, *args, **kwargs))
 
     if jac in ['2-point', '3-point']:
-        # args, kwargs already passed to function
-        jac_wrapped = lambda x, f: approx_derivative(
-            fun, x, method=jac, f0=f, bounds=bounds)
+        jac_wrapped = lambda x, f: np.atleast_2d(approx_derivative(
+            fun_wrapped, x, rel_step=diff_step,
+            method=jac, f0=f, bounds=bounds))
     else:
-        jac_wrapped = lambda x, f: jac(x, *args, **kwargs)
+        jac_wrapped = lambda x, f: np.atleast_2d(jac(x, *args, **kwargs))
 
     if method == 'trf':
         x, f, J, obj_value, g_norm, nfev, njev, status = trf(
             fun_wrapped, jac_wrapped, x0, lb, ub,
-            ftol, xtol, gtol, max_nfev, scaling)
+            ftol, xtol, gtol, max_nfev, scaling, **options)
         active_mask = find_active_constraints(x, lb, ub, rtol=xtol)
 
     elif method == 'dogbox':
         x, f, J, obj_value, g_norm, nfev, njev, status, active_mask = \
             dogbox(fun_wrapped, jac_wrapped, x0, lb, ub,
-                   ftol, xtol, gtol, max_nfev, scaling)
+                   ftol, xtol, gtol, max_nfev, scaling, **options)
 
     return prepare_OptimizeResult(x, f, J, obj_value, g_norm, nfev, njev,
                                   status, active_mask, None)
