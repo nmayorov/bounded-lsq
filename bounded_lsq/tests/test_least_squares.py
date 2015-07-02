@@ -88,8 +88,8 @@ class BaseMixin(object):
                       2.0, scaling=-1.0, method=self.method)
 
     def test_diff_step(self):
-        # res1 and res2 should have higher nfev, as the Jacobian approximation
-        # is rough.
+        # res1 and res2 should be equivalent.
+        # res2 and res3 should be different.
         res1 = least_squares(trivial_fun, 2.0, diff_step=1e-2,
                              method=self.method)
         res2 = least_squares(trivial_fun, 2.0, diff_step=-1e-2,
@@ -109,7 +109,7 @@ class BaseMixin(object):
         assert_raises(TypeError, least_squares, trivial_fun, 2.0,
                       method=self.method, options={'max_nfev': 100})
 
-    def test_tolerance_thresolds(self):
+    def test_tolerance_thresholds(self):
         assert_warns(UserWarning, least_squares, trivial_fun, 2.0, ftol=0.0,
                      method=self.method)
         res = least_squares(trivial_fun, 2.0, ftol=1e-20, xtol=-1.0, gtol=0.0,
