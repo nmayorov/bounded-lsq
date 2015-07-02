@@ -143,10 +143,11 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         must return 2-d ndarray, if you set ``col_deriv=1`` in `options` then
         a callable must return transposed Jacobian.
     bounds : tuple of array-like, optional
-        Lower and upper bounds on independent variables. Default is not
+        Lower and upper bounds on independent variables. Defaults to no bounds.
         Each bound must match the size of `x0` or be a scalar, in the latter
         case the bound will be the same for all variables. Use ``np.inf``
-        with an appropriate sign to disable bounds to some of the variables.
+        with an appropriate sign to disable bounds on all or some of the
+        variables.
     method : {'trf', 'dogbox', 'lm'}, optional
         Determines the algorithm to perform optimization. Default is 'trf.
         See Notes and algorithm options to get information about each
@@ -313,6 +314,10 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
 
     if lb.shape != x0.shape or ub.shape != x0.shape:
         raise ValueError("Inconsistent shapes between bounds and `x0`.")
+
+    if np.any(lb >= ub):
+        raise ValueError("Each lower bound mush be strictly less than each "
+                         "upper bound.")
 
     bounded = not np.all((lb == -np.inf) & (ub == np.inf))
 

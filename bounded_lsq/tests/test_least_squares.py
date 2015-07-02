@@ -13,14 +13,19 @@ simplefilter('ignore')
 def fun_trivial(x, a=0):
     return (x - a)**2 + 5.0
 
-
 def jac_trivial(x, a=0.0):
     return 2 * (x - a)
 
 
+def fun_2d_trivial(x):
+    return np.array([x[0], x[1]])
+
+def jac_2d_trivial(x):
+    return np.identity(2)
+
+
 def fun_rosenbrock(x):
     return np.array([10 * (x[1] - x[0]**2), (1 - x[0])])
-
 
 def jac_rosenbrock(x):
     return np.array([
@@ -195,23 +200,74 @@ class BaseMixin(object):
 
 
 class BoundsMixin(object):
-    # collect bounds-related tests here
+    def test_inconsistent(self):
+        assert_raises(ValueError, least_squares, fun_trivial, 2.0,
+                      bounds=(10.0, 0.0), method=self.method)
+
     def test_infeasible(self):
-        assert_raises(ValueError, least_squares, fun_trivial, 2.,
-                                  **dict(bounds=(3., 4), method=self.method))
+        assert_raises(ValueError, least_squares, fun_trivial, 2.0,
+                      bounds=(3., 4), method=self.method)
                                                  
-    def test_bounds_three_el(self):
+    def test_wrong_number(self):
         assert_raises(ValueError, least_squares, fun_trivial, 2.,
-                                  **dict(bounds=(1., 2, 3),
-                                         method=self.method))
+                      bounds=(1., 2, 3), method=self.method)
+
+    def test_inconsistent_shape(self):
+        assert_raises(ValueError, least_squares, fun_trivial, 2.0,
+                      bounds=(1.0, [2.0, 3.0]), method=self.method)
+        # 1-D array can't be broadcasted
+        assert_raises(ValueError, least_squares, fun_rosenbrock, [1.0, 2.0],
+                      bounds=([0.0], [3.0, 4.0]), method=self.method)
 
     def test_in_bounds(self):
-        # TODO: test that a solution is in bounds for the minimum inside
-        #       repear w/ a minimum @ the boundary
-        pass
-        # raise AssertionError
+        for jac in ['2-point', '3-point', jac_trivial]:
+            res = least_squares(fun_trivial, 2.0, jac=jac,
+                                bounds=(-1.0, 3.0), method=self.method)
+            assert_allclose(res.x, 0.0, atol=1e-4)
+            assert_equal(res.active_mask, [0])
+            assert_(-1 <= res.x <= 3)
+            res = least_squares(fun_trivial, 2.0, jac=jac,
+                                bounds=(0.5, 3.0), method=self.method)
+            assert_allclose(res.x, 0.5, atol=1e-4)
+            assert_equal(res.active_mask, [-1])
+            assert_(0.5 <= res.x <= 3)
 
-    ### TODO: test various combinations of bounds: scalar & vector, two scalars etc
+    def test_bounds_shape(self):
+        for jac in ['2-point', '3-point', jac_2d_trivial]:
+            x0 = [1.0, 1.0]
+            res = least_squares(fun_2d_trivial, x0, jac=jac)
+            assert_allclose(res.x, [0.0, 0.0])
+            res = least_squares(fun_2d_trivial, x0, jac=jac,
+                                bounds=(0.5, [2.0, 2.0]), method=self.method)
+            assert_allclose(res.x, [0.5, 0.5])
+            res = least_squares(fun_2d_trivial, x0, jac=jac,
+                                bounds=([0.3, 0.2], 3.0), method=self.method)
+            assert_allclose(res.x, [0.3, 0.2])
+            res = least_squares(
+                fun_2d_trivial, x0, jac=jac, bounds=([-1, 0.5], [1.0, 3.0]),
+                method=self.method)
+            assert_allclose(res.x, [0.0, 0.5], atol=1e-5)
+
+    def test_rosenbrock_bounds(self):
+        x0_1 = np.array([-2.0, 1.0])
+        x0_2 = np.array([2.0, 2.0])
+        x0_3 = np.array([-2.0, 2.0])
+        x0_4 = np.array([0.0, 2.0])
+        x0_5 = np.array([-1.2, 1.0])
+        problems = [
+            (x0_1, ([-np.inf, -1.5], np.inf)),
+            (x0_2, ([-np.inf, 1.5], np.inf)),
+            (x0_3, ([-np.inf, 1.5], np.inf)),
+            (x0_4, ([-np.inf, 1.5], [1.0, np.inf])),
+            (x0_2, ([1.0, 1.5], [3.0, 3.0])),
+            (x0_5, ([-50.0, 0.0], [0.5, 100]))
+        ]
+        for x0, bounds in problems:
+            for scaling in [1.0, [1.0, 2.0], 'jac']:
+                for jac in ['2-point', '3-point', jac_rosenbrock]:
+                    res = least_squares(fun_rosenbrock, x0, jac, bounds,
+                                        method=self.method, scaling=scaling)
+                    assert_allclose(res.optimality, 0.0, atol=1e-5)
 
 
 class TestDogbox(BaseMixin, BoundsMixin, TestCase):
@@ -225,8 +281,15 @@ class TestTRF(BaseMixin, BoundsMixin, TestCase):
 class TestLM(BaseMixin, TestCase):
     method = 'lm'
 
-    ### TODO: test that options['epsfcn'] raises TypeError
-    ###       test that non-default bounds raise
+    def test_bounds_not_supported(self):
+        assert_raises(ValueError, least_squares, fun_trivial,
+                      2.0, bounds=(-3.0, 3.0), method='lm')
+
+    def test_repeated_options_errors(self):
+        assert_raises(TypeError, least_squares, fun_trivial,
+                      2.0, options={'diag': 1.0}, method='lm')
+        assert_raises(TypeError, least_squares, fun_trivial,
+                      2.0, options={'epsfcn': 1e-10}, method='lm')
 
 
 #
