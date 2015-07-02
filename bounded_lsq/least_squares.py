@@ -48,24 +48,6 @@ FROM_MINPACK_TO_COMMON = {
 }
 
 
-def prepare_OptimizeResult(x, f, J, obj_value, g_norm, nfev, njev,
-                           status, active_mask, x_covariance):
-    r = OptimizeResult()
-    r.x = x
-    r.fun = f
-    r.jac = J
-    r.obj_value = obj_value
-    r.optimality = g_norm
-    r.active_mask = active_mask
-    r.nfev = nfev
-    r.njev = njev
-    r.status = status
-    r.success = status > 0
-    r.message = TERMINATION_MESSAGES[status]
-    r.x_covariance = x_covariance
-    return r
-
-
 def call_leastsq(fun, x0, jac, ftol, xtol, gtol, max_nfev, scaling,
                  diff_step, args, options):
     if jac == '3-point':
@@ -151,7 +133,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         Function which computes a vector of residuals. The argument x passed
         to this function is ndarray of shape (n,) (never a scalar, even
         if n=1). It must return 1-d array-like of shape (m,) or a scalar.
-    x0 : array-like of shape (n,) or float
+    x0 : array_like of shape (n,) or float
         Initial guess on the independent variables. If float, for internal
         usage it will be converted to 1-d array.
     jac : '2-point', '3-point' or callable, optional
@@ -165,7 +147,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         np.atleast_2d in 'trf' and 'dogbox' methods). In 'lm' method: callable
         must return 2-d ndarray, if you set ``col_deriv=1`` in `options` then
         a callable must return transposed Jacobian.
-    bounds : tuple of array-like, optional
+    bounds : 2-tuple of array_like, optional
         Lower and upper bounds on independent variables. Defaults to no bounds.
         Each bound must match the size of `x0` or be a scalar, in the latter
         case the bound will be the same for all variables. Use ``np.inf``
@@ -179,7 +161,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         Tolerance for termination by the change of the objective value.
         Default is square root of machine epsilon. See the exact meaning in
         documentation for a particular method.
-    xtol : float. optional
+    xtol : float, optional
         Tolerance for termination by the change of the independent variables.
         Default is square root of machine epsilon. See the exact meaning in
         documentation for a particular method.
@@ -192,8 +174,8 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     max_nfev : None or int, optional
         Maximum number of function evaluations before the termination.
         If None (default) each algorithm uses its own default value.
-    scaling : array-like or 'jac', optional
-        Applies scaling to potentially improve algorithm convergence.
+    scaling : array_like or 'jac', optional
+        Applies variables scaling to potentially improve algorithm convergence.
         Default is 1.0 which means no scaling. Scaling should be used to
         equalize the influence of each variable on the objective function.
         Alternatively you can think of `scaling` as diagonal elements of
@@ -206,15 +188,15 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         unconstrained problems, but not so much in constrained ones.
         From experience usage of 'jac'-scaling is not recommended for bounded
         problems with 'trf' method.
-    diff_step : None or array-like, optional
+    diff_step : None or array_like, optional
         Determines the step size for finite difference Jacobian approximation.
         The actual step is computed as ``x * diff_step``. If None (default),
         `diff_step` is assigned to a conventional "optimal" power of machine
         epsilon depending on finite difference approximation method [NR]_.
     args, kwargs : tuple and dict, optional
         Additional arguments passed to `fun` and `jac`. Both empty by default.
-        The calling signature is ``fun(x, *args, **kwargs)``. When
-        ``method='lm'`` then `kwargs` is ignored.
+        The calling signature is ``fun(x, *args, **kwargs)`` and the same for
+        `jac`. Method 'lm' can't handle `kwargs`.
     options : dict, optional
         Additional options passed to a chosen algorithm. Empty by default.
         The calling sequence is ``method(..., **options)``. Look for relative
@@ -233,9 +215,9 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         Jacobian at the solution.
     optimality : float
         First-order optimality measure. In unconstrained problems it is always
-        the uniform norm of the gradient. In constrained case this is the
+        the uniform norm of the gradient. In constrained problems this is the
         quantity which was compared with `gtol` during iterations, refer
-        to method's documentation.
+        to method options.
     active_mask : ndarray of int, shape (n,)
         Each component shows whether the corresponding constraint is active:
              0 - a constraint is not active.
@@ -264,7 +246,9 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         True if one of the convergence criteria is satisfied.
     x_covariance : ndarray, shape (m, m)
         Estimate of `x` covariance assuming that residuals are uncorrelated
-        and have unity variance.
+        and have unity variance. It is computed as inverse of J.T*J where J
+        is Jacobian matrix. If 'trf' or 'dogbox' method is used or the inverse
+        doesn't exist this field is set to None.
 
     Notes
     -----
@@ -330,7 +314,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     x0 = np.atleast_1d(x0).astype(float)
 
     if x0.ndim > 1:
-        raise ValueError("`x0` must be at most 1-dimensional.")
+        raise ValueError("`x0` must have at most 1 dimension.")
 
     lb, ub = prepare_bounds(bounds, x0)
 
