@@ -125,9 +125,12 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     Parameters
     ----------
     fun : callable
-        Returns a 1d-array of residuals of size m.
-    x0 : array-like, shape (n,)
-        Initial guess on the independent variables.
+        Function which computes a vector of residuals. The argument x passed
+        to this function is ndarray of shape (n,) (never a scalar, even
+        if n=1). It must return 1-d array-like of shape (m,) or a scalar.
+    x0 : array-like of shape (n,) or float
+        Initial guess on the independent variables. If float, for internal
+        usage it will be converted to 1-d array.
     jac : '2-point', '3-point' or callable, optional
         Method of computing partial derivatives of f with respect to x,
         which form m-by-n array called the Jacobian matrix. If set to '2-point'
@@ -135,9 +138,10 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         finite difference scheme. The '3-point' scheme is more accurate,
         but requires twice as much operations compared to '2-point' (default).
         If callable then it should return a reasonable approximation of the
-        Jacobian as ndarray. The typical use case is to implement Jacobian
-        computation function by exact formulas (but make sure your
-        implementation is correct running optimization.)
+        Jacobian as array_like with at most 2 dimensions (transformed by
+        np.atleast_2d in 'trf' and 'dogbox' methods). In 'lm' method: callable
+        must return 2-d ndarray, if you set ``col_deriv=1`` in `options` then
+        a callable must return transposed Jacobian.
     bounds : tuple of array-like, optional
         Lower and upper bounds on independent variables. Default is not
         Each bound must match the size of `x0` or be a scalar, in the latter
@@ -355,14 +359,27 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     if max_nfev is None:
         max_nfev = x0.size * 100
 
-    fun_wrapped = lambda x: np.atleast_1d(fun(x, *args, **kwargs))
+    def fun_wrapped(x):
+        f = np.atleast_1d(fun(x, *args, **kwargs))
+        if f.ndim > 1:
+            raise RuntimeError("`fun` must return at most 1-d array_like.")
+        return f
 
     if jac in ['2-point', '3-point']:
-        jac_wrapped = lambda x, f: np.atleast_2d(approx_derivative(
-            fun_wrapped, x, rel_step=diff_step,
-            method=jac, f0=f, bounds=bounds))
+        def jac_wrapped(x, f):
+            J = approx_derivative(
+                fun, x, rel_step=diff_step, method=jac, f0=f,
+                bounds=bounds, args=args, kwargs=kwargs)
+            J = np.atleast_2d(J)
+            if J.ndim > 2:
+                raise RuntimeError("`jac` must return at most 2-d array_like.")
+            return J
     else:
-        jac_wrapped = lambda x, f: np.atleast_2d(jac(x, *args, **kwargs))
+        def jac_wrapped(x, f):
+            J = np.atleast_2d(jac(x, *args, **kwargs))
+            if J.ndim > 2:
+                raise RuntimeError("`jac` must return at most 2-d array_like.")
+            return J
 
     if method == 'trf':
         x, f, J, obj_value, g_norm, nfev, njev, status = trf(

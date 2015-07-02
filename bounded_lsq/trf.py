@@ -204,6 +204,10 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
     J = jac(x, f)
     njev = 1
 
+    if f.shape[0] != J.shape[0]:
+        raise RuntimeError("Inconsistent dimensions between the returns of "
+                           "`fun` and `jac` on the first iteration.")
+
     g = J.T.dot(f)
     m, n = J.shape
 
