@@ -204,8 +204,10 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     jac : ndarray, shape (m, n)
         Jacobian at the solution.
     optimality : float
-        First-order optimality measure. This quantity was compared with
-        `gtol` during iterations.
+        First-order optimality measure. In unconstrained problems it is always
+        the uniform norm of the gradient. In constrained case this is the
+        quantity which was compared with `gtol` during iterations, refer
+        to method's documentation.
     active_mask : ndarray of int, shape (n,)
         Each component shows whether the corresponding constraint is active:
              0 - a constraint is not active.
@@ -337,19 +339,8 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
             J = approx_derivative(fun, x, args=args)
         J = np.atleast_2d(J)
         obj_value = np.dot(f, f)
-
-        # According to MINPACK compute optimality as
-        # cosine between f and J columns.
-        if obj_value == 0:
-            g_norm = 0
-        else:
-            g = J.T.dot(f)
-            g /= norm(f)
-            J_norm = norm(J, axis=0)
-            mask = J_norm > 0
-            g[mask] /= J_norm[mask]
-            g_norm = norm(g, ord=np.inf)
-
+        g = J.T.dot(f)
+        g_norm = norm(g, ord=np.inf)
         nfev = info['nfev']
         njev = info.get('njev', None)
         status = FROM_MINPACK_TO_COMMON[status]
