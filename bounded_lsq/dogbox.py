@@ -2,6 +2,7 @@ from __future__ import division
 
 import numpy as np
 from numpy.linalg import lstsq, norm
+from scipy.optimize import OptimizeResult
 from .bounds import step_size_to_bound, in_bounds
 
 
@@ -146,6 +147,9 @@ def dogbox(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
     step = np.empty_like(x0)
     obj_value = np.dot(f, f)
 
+    if max_nfev is None:
+        max_nfev = x0.size * 100
+
     termination_status = None
     while nfev < max_nfev:
         g = J.T.dot(f)
@@ -174,8 +178,10 @@ def dogbox(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
                 termination_status = 1
 
         if termination_status is not None:
-            return (x, f, J, obj_value, g_norm,
-                    nfev, njev, termination_status, on_bound)
+            return OptimizeResult(
+                x=x, fun=f, jac=J, obj_value=obj_value, optimality=g_norm,
+                active_mask=on_bound, nfev=nfev, njev=njev,
+                status=termination_status, x_covariance=None)
 
         # Compute (Gauss-)Newton and Cauchy steps
         newton_step = lstsq(J_free, -f)[0]
@@ -250,4 +256,7 @@ def dogbox(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
             J = jac(x, f)
             njev += 1
 
-    return x, f, J, obj_value, g_norm, nfev, njev, 0, on_bound
+    return OptimizeResult(
+        x=x, fun=f, jac=J, obj_value=obj_value, optimality=g_norm,
+        active_mask=on_bound, nfev=nfev, njev=njev, status=0,
+        x_covariance=None)

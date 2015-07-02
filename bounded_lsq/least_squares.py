@@ -3,7 +3,7 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.optimize import approx_derivative, leastsq, OptimizeResult
 
-from .bounds import in_bounds, prepare_bounds, find_active_constraints
+from .bounds import in_bounds, prepare_bounds
 from .trf import trf
 from .dogbox import dogbox
 
@@ -86,9 +86,32 @@ def call_leastsq(fun, x0, jac, ftol, xtol, gtol, max_nfev, scaling,
     if scaling == 'jac':
         scaling = None
 
-    return leastsq(fun, x0, args=args, Dfun=jac, full_output=True,
-                   ftol=ftol, xtol=xtol, gtol=gtol, maxfev=max_nfev,
-                   epsfcn=epsfcn, diag=scaling, **options)
+    x, cov_x, info, message, status = leastsq(
+        fun, x0, args=args, Dfun=jac, full_output=True, ftol=ftol, xtol=xtol,
+        gtol=gtol, maxfev=max_nfev, epsfcn=epsfcn, diag=scaling, **options)
+
+    f = info['fvec']
+
+    if callable(jac):
+        J = jac(x, *args)
+    else:
+        J = approx_derivative(fun, x, args=args)
+    J = np.atleast_2d(J)
+
+    obj_value = np.dot(f, f)
+    g = J.T.dot(f)
+    g_norm = norm(g, ord=np.inf)
+
+    nfev = info['nfev']
+    njev = info.get('njev', None)
+
+    status = FROM_MINPACK_TO_COMMON[status]
+    active_mask = np.zeros_like(x0, dtype=int)
+
+    return OptimizeResult(
+        x=x, fun=f, jac=J, obj_value=obj_value, optimality=g_norm,
+        active_mask=active_mask, nfev=nfev, njev=njev, status=status,
+        message=message, success=status > 0, x_covariance=cov_x)
 
 
 def check_scaling(scaling, x0):
@@ -304,8 +327,7 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
     if len(bounds) != 2:
         raise ValueError("`bounds` must contain 2 elements.")
 
-    x0 = np.atleast_1d(x0)
-    x0 = x0.astype(float)
+    x0 = np.atleast_1d(x0).astype(float)
 
     if x0.ndim > 1:
         raise ValueError("`x0` must be at most 1-dimensional.")
@@ -319,10 +341,8 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
         raise ValueError("Each lower bound mush be strictly less than each "
                          "upper bound.")
 
-    bounded = not np.all((lb == -np.inf) & (ub == np.inf))
-
     if method == 'lm':
-        if bounded:
+        if not np.all((lb == -np.inf) & (ub == np.inf)):
             raise ValueError("Method 'lm' doesn't support bounds.")
 
         if len(kwargs) > 0:
@@ -337,32 +357,11 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
 
     # Handle 'lm' separately
     if method == 'lm':
-        x, cov_x, info, message, status = call_leastsq(
-            fun, x0, jac, ftol, xtol, gtol, max_nfev,
-            scaling, diff_step, args, options)
-
-        f = info['fvec']
-        if callable(jac):
-            J = jac(x, *args)
-        else:
-            J = approx_derivative(fun, x, args=args)
-        J = np.atleast_2d(J)
-        obj_value = np.dot(f, f)
-        g = J.T.dot(f)
-        g_norm = norm(g, ord=np.inf)
-        nfev = info['nfev']
-        njev = info.get('njev', None)
-        status = FROM_MINPACK_TO_COMMON[status]
-        active_mask = np.zeros_like(x0, dtype=int)
-
-        return prepare_OptimizeResult(x, f, J, obj_value, g_norm,
-                                      nfev, njev, status, active_mask, cov_x)
+        return call_leastsq(fun, x0, jac, ftol, xtol, gtol, max_nfev,
+                            scaling, diff_step, args, options)
 
     if not in_bounds(x0, lb, ub):
         raise ValueError("`x0` is infeasible.")
-
-    if max_nfev is None:
-        max_nfev = x0.size * 100
 
     def fun_wrapped(x):
         f = np.atleast_1d(fun(x, *args, **kwargs))
@@ -387,15 +386,13 @@ def least_squares(fun, x0, jac='2-point', bounds=(-np.inf, np.inf),
             return J
 
     if method == 'trf':
-        x, f, J, obj_value, g_norm, nfev, njev, status = trf(
-            fun_wrapped, jac_wrapped, x0, lb, ub,
-            ftol, xtol, gtol, max_nfev, scaling, **options)
-        active_mask = find_active_constraints(x, lb, ub, rtol=xtol)
+        result = trf(fun_wrapped, jac_wrapped, x0, lb, ub,
+                     ftol, xtol, gtol, max_nfev, scaling, **options)
 
     elif method == 'dogbox':
-        x, f, J, obj_value, g_norm, nfev, njev, status, active_mask = \
-            dogbox(fun_wrapped, jac_wrapped, x0, lb, ub,
-                   ftol, xtol, gtol, max_nfev, scaling, **options)
+        result = dogbox(fun_wrapped, jac_wrapped, x0, lb, ub,
+                        ftol, xtol, gtol, max_nfev, scaling, **options)
 
-    return prepare_OptimizeResult(x, f, J, obj_value, g_norm, nfev, njev,
-                                  status, active_mask, None)
+    result.message = TERMINATION_MESSAGES[result.status]
+    result.success = result.status > 0
+    return result

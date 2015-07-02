@@ -6,7 +6,9 @@ from __future__ import division
 import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import svd
-from .bounds import step_size_to_bound, make_strictly_feasible, CL_scaling
+from scipy.optimize import OptimizeResult
+from .bounds import (step_size_to_bound, make_strictly_feasible, CL_scaling,
+                     find_active_constraints)
 from .trust_region import get_intersection, solve_lsq_trust_region
 
 
@@ -229,6 +231,9 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
     obj_value = np.dot(f, f)
     alpha = 0.0  # "Levenberg-Marquardt" parameter
 
+    if max_nfev is None:
+        max_nfev = x0.size * 100
+
     termination_status = None
     while nfev < max_nfev:
         if scaling == 'auto':
@@ -249,7 +254,11 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
             termination_status = 1
 
         if termination_status is not None:
-            return x, f, J, obj_value, g_norm, nfev, njev, termination_status
+            active_mask = find_active_constraints(x, lb, ub, rtol=xtol)
+            return OptimizeResult(
+                x=x, fun=f, jac=J, obj_value=obj_value, optimality=g_norm,
+                active_mask=active_mask, nfev=nfev, njev=njev,
+                status=termination_status, x_covariance=None)
 
         # Jacobian in "hat" space.
         J_h = J * d
@@ -342,4 +351,9 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
             J = jac(x, f)
             njev += 1
 
-    return x, f, J, obj_value, g_norm, nfev, njev, 0
+    active_mask = find_active_constraints(x, lb, ub, rtol=xtol)
+    return OptimizeResult(
+        x=x, fun=f, jac=J, obj_value=obj_value, optimality=g_norm,
+        active_mask=active_mask, nfev=nfev, njev=njev, status=0,
+        x_covariance=None)
+
