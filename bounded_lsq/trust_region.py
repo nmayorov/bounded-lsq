@@ -8,11 +8,11 @@ from numpy.linalg import norm
 from math import copysign
 
 
-def get_intersection(x, d, Delta):
+def intersect_trust_region(x, s, Delta):
     """Find the intersection of a line with a spherical trust region.
 
     The function just solves the quadratic equation with respect to t
-    ||(x + t d)||**2 = Delta**2.
+    ||(x + s*t)||**2 = Delta**2.
 
     Returns
     -------
@@ -22,13 +22,18 @@ def get_intersection(x, d, Delta):
     Raises
     ------
     ValueError
-        If 'x' is not within the trust region.
+        If `s` is zero or `x` is not within the trust region.
     """
-    a = np.dot(d, d)
-    b = np.dot(x, d)
+    a = np.dot(s, s)
+    if a == 0:
+        raise ValueError("`s` is zero.")
+
+    b = np.dot(x, s)
+
     c = np.dot(x, x) - Delta**2
     if c > 0:
         raise ValueError("`x` is not within the trust region.")
+
     delta = np.sqrt(b*b - a*c)
     q = -(b + copysign(delta, b))
     t1 = q / a
@@ -53,12 +58,9 @@ def solve_lsq_trust_region(n, m, uf, s, V, Delta, initial_alpha=None,
     """Solve a trust-region problem arising in least-squares minimization by
     MINPACK approach.
 
-    This function implements a method described by J. J. More, but it relies
-    on SVD of Jacobian.
-
-    Before running this function we compute
-    ``U, s, VT = svd(J, full_matrices=False)``.  The vector of residuals we
-    denote as f.
+    This function implements a method described by J. J. More [1]_, but it
+    relies on SVD of Jacobian. Before running this function we compute:
+    ``U, s, VT = svd(J, full_matrices=False)``.
 
     Parameters
     ----------
@@ -66,34 +68,39 @@ def solve_lsq_trust_region(n, m, uf, s, V, Delta, initial_alpha=None,
         Number of variables.
     m : int
         Number of residuals.
-    uf : array
+    uf : ndarray
         Should be computed as U.T.dot(f).
-    s : array
+    s : ndarray
         Singular values of J.
-    V : array
+    V : ndarray
         Transpose of VT.
     Delta : float
-        A trust-region radius.
+        Radius of a trust region.
     initial_alpha : float, optional
-        The initial guess for alpha, which might be available from a
-        previous iteration.
+        Initial guess for alpha, which might be available from a previous
+        iteration.
     rtol : float, optional
-        The stopping tolerance for the root-finding procedure. Namely,
-        the root `alpha` must satisfy ``|p(alpha) - Delta| < rtol * Delta``.
+        Stopping tolerance for the root-finding procedure. Namely, the
+        solution p must satisfy ``abs(norm(p) - Delta) < rtol * Delta``.
     max_iter : int, optional
-        The maximum allowed number of iterations for the root-finding
-        procedure.
+        Maximum allowed number of iterations for the root-finding procedure.
 
     Returns
     -------
     p : array, shape (n,)
-        The solution of a trust region problem
+        The solution of a trust-region problem
     alpha : float
-        The corresponding scalar parameter (sometimes called
-        Levenberg-Marquardt parameter).
+        Positive value such that (J.T*J + alpha*I)*p = -J.T*f.
+        Sometimes called Levenberg-Marquardt parameter.
     n_iter : int
         The number of iterations made by root-finding procedure. Zero means
         that Gauss-Newton step was selected as the solution.
+
+    References
+    ----------
+    .. [1] More, J. J., "The Levenberg-Marquardt Algorithm: Implementation
+           and Theory," Numerical Analysis, ed. G. A. Watson, Lecture Notes
+           in Mathematics 630, Springer Verlag, pp. 105-116, 1977.
     """
     suf = s * uf
 

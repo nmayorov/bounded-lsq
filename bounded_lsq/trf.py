@@ -9,7 +9,7 @@ from scipy.linalg import svd
 from scipy.optimize import OptimizeResult
 from .bounds import (step_size_to_bound, make_strictly_feasible,
                      find_active_constraints, scaling_vector)
-from .trust_region import get_intersection, solve_lsq_trust_region
+from .trust_region import intersect_trust_region, solve_lsq_trust_region
 
 
 def minimize_quadratic(a, b, l, u):
@@ -123,7 +123,7 @@ def find_reflected_step(x, J_h, diag_h, g_h, p, p_h, d, Delta, l, u, theta):
 
     # Reflected direction will cross first either feasible region or trust
     # region boundary.
-    _, to_tr = get_intersection(p_h, r_h, Delta)
+    _, to_tr = intersect_trust_region(p_h, r_h, Delta)
     to_bound, _ = step_size_to_bound(x_on_bound, r, l, u)
     to_bound *= theta  # Stay strictly interior.
 
