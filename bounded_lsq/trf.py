@@ -7,8 +7,8 @@ import numpy as np
 from numpy.linalg import norm
 from scipy.linalg import svd
 from scipy.optimize import OptimizeResult
-from .bounds import (step_size_to_bound, make_strictly_feasible, CL_scaling,
-                     find_active_constraints)
+from .bounds import (step_size_to_bound, make_strictly_feasible,
+                     find_active_constraints, scaling_vector)
 from .trust_region import get_intersection, solve_lsq_trust_region
 
 
@@ -220,8 +220,8 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
     else:
         scale = 1 / scaling
 
-    d_CL, jv = CL_scaling(x, g, lb, ub)
-    Delta = norm(x0 / (scale * d_CL))
+    v, jv = scaling_vector(x, g, lb, ub)
+    Delta = norm(x0 / (scale * v**0.5))
     if Delta == 0:
         Delta = 1.0
 
@@ -244,12 +244,12 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
         g = J.T.dot(f)
 
         # Compute Coleman-Li scaling parameters and "hat" variables.
-        d_CL, jv = CL_scaling(x, g, lb, ub)
-        d = d_CL * scale
+        v, jv = scaling_vector(x, g, lb, ub)
+        d = v**0.5 * scale
         g_h = d * g
         diag_h = g * jv * scale**2
 
-        g_norm = norm(g * d_CL**2, ord=np.inf)
+        g_norm = norm(g * v, ord=np.inf)
         if g_norm < gtol:
             termination_status = 1
 
@@ -356,4 +356,3 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
         x=x, fun=f, jac=J, obj_value=obj_value, optimality=g_norm,
         active_mask=active_mask, nfev=nfev, njev=njev, status=0,
         x_covariance=None)
-

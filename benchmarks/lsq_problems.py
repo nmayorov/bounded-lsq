@@ -7,7 +7,6 @@ import inspect
 import sys
 import numpy as np
 from numpy.polynomial.chebyshev import Chebyshev
-from bounded_lsq import find_active_constraints, CL_scaling, prepare_bounds
 
 
 class LSQBenchmarkProblem(object):

@@ -103,23 +103,54 @@ def make_strictly_feasible(x, lb, ub, rstep=0):
     return x_new
 
 
-def CL_scaling(x, g, lb, ub):
+def scaling_vector(x, g, lb, ub):
     """Compute a scaling vector and its derivatives as described in papers
-    of Coleman and Li."""
-    d = np.ones_like(x)
+    of Coleman and Li.
+
+    We define components of a vector v as follows:
+
+           | u[i] - x[i], if g[i] < 0 and u[i] < np.inf
+    v[i] = | x[i] - l[i], if g[i] > 0 and l[i] > -np.inf
+           | 1,           otherwise
+
+    According to this definition v[i] >= 0 for all i. It differs from the
+    definition in paper [1]_ (eq. (2.2)). where they use the absolute value
+    of v. Both definitions are equivalent down the line.
+
+    Also we need its derivatives with respect to x which take
+    values 1, -1 or 0 depending on a case.
+
+    Returns
+    -------
+    v : ndarray with shape of x
+        Scaling vector.
+    jv : ndarray with shape of x
+        Derivatives of v[i] with respect to x[i], diagonal elements of v's
+        Jacobian.
+
+    References
+    ----------
+    .. [1] Branch, M.A., T.F. Coleman, and Y. Li, "A Subspace, Interior,
+           and Conjugate Gradient Method for Large-Scale Bound-Constrained
+           Minimization Problems," SIAM Journal on Scientific Computing,
+           Vol. 21, Number 1, pp 1-23, 1999.
+    """
+    v = np.ones_like(x)
     jv = np.zeros_like(x)
+
     mask = (g < 0) & np.isfinite(ub)
-    d[mask] = ub[mask] - x[mask]
+    v[mask] = ub[mask] - x[mask]
     jv[mask] = -1
+
     mask = (g > 0) & np.isfinite(lb)
-    d[mask] = x[mask] - lb[mask]
+    v[mask] = x[mask] - lb[mask]
     jv[mask] = 1
 
-    return d**0.5, jv
+    return v, jv
 
 
 def CL_optimality(x, g, lb, ub):
     lb = np.resize(lb, x.shape)
     ub = np.resize(ub, x.shape)
-    d, _ = CL_scaling(x, g, lb, ub)
-    return np.linalg.norm(d**2 * g, ord=np.inf)
+    v, _ = scaling_vector(x, g, lb, ub)
+    return np.linalg.norm(v * g, ord=np.inf)

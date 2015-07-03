@@ -2,8 +2,8 @@
 
 from .dogbox import dogbox
 from .trf import trf
-from .bounds import (find_active_constraints, prepare_bounds,
-                     CL_scaling, CL_optimality, make_strictly_feasible)
+from .bounds import (find_active_constraints, prepare_bounds, CL_optimality,
+                     make_strictly_feasible)
 from .leastsqbound import leastsqbound
 from .least_squares import least_squares
 
