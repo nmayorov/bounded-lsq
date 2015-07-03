@@ -6,20 +6,33 @@ from scipy.optimize import OptimizeResult
 from .bounds import step_size_to_bound, in_bounds
 
 
-def find_intersection(x, tr_bounds, l, u):
-    l_centered = l - x
-    u_centered = u - x
+def find_intersection(x, tr_bounds, lb, ub):
+    """Find intersection of trust-region bounds and initial bounds.
 
-    l_total = np.maximum(l_centered, -tr_bounds)
-    u_total = np.minimum(u_centered, tr_bounds)
+    Returns
+    -------
+    lb_total, ub_total : ndarray with shape of x
+        Lower and upper bounds of the intersection region.
+    orig_l, orig_u : ndarray of bool with shape of x
+        True means that an original bound is taken as a corresponding bound
+        in the intersection region.
+    tr_l, tr_u : ndarray of bool with shape of x
+        True means that a trust-region bound is taken as a corresponding bound
+        in the intersection region.
+    """
+    lb_centered = lb - x
+    ub_centered = ub - x
 
-    l_bound = np.equal(l_total, l_centered)
-    u_bound = np.equal(u_total, u_centered)
+    lb_total = np.maximum(lb_centered, -tr_bounds)
+    ub_total = np.minimum(ub_centered, tr_bounds)
 
-    l_tr = np.equal(l_total, -tr_bounds)
-    u_tr = np.equal(u_total, tr_bounds)
+    orig_l = np.equal(lb_total, lb_centered)
+    orig_u = np.equal(ub_total, ub_centered)
 
-    return l_total, u_total, l_bound, u_bound, l_tr, u_tr
+    tr_l = np.equal(lb_total, -tr_bounds)
+    tr_u = np.equal(ub_total, tr_bounds)
+
+    return lb_total, ub_total, orig_l, orig_u, tr_l, tr_u
 
 
 def dogleg_step(x, cauchy_step, newton_step, tr_bounds, l, u):
@@ -38,26 +51,26 @@ def dogleg_step(x, cauchy_step, newton_step, tr_bounds, l, u):
     tr_hit : bool
         Whether the step reaches the boundary of the trust-region.
     """
-    l_total, u_total, l_bound, u_bound, l_tr, u_tr = find_intersection(
+    lb_total, ub_total, orig_l, orig_u, tr_l, tr_u = find_intersection(
         x, tr_bounds, l, u
     )
 
     bound_hits = np.zeros_like(x, dtype=int)
 
-    if in_bounds(newton_step, l_total, u_total):
+    if in_bounds(newton_step, lb_total, ub_total):
         return newton_step, bound_hits, False
 
-    if not in_bounds(cauchy_step, l_total, u_total):
+    if not in_bounds(cauchy_step, lb_total, ub_total):
         alpha, _ = step_size_to_bound(
-            np.zeros_like(cauchy_step), cauchy_step, l_total, u_total)
+            np.zeros_like(cauchy_step), cauchy_step, lb_total, ub_total)
         cauchy_step = alpha * cauchy_step
 
     step_diff = newton_step - cauchy_step
     alpha, hits = step_size_to_bound(cauchy_step, step_diff,
-                                      l_total, u_total)
-    bound_hits[(hits < 0) & l_bound] = -1
-    bound_hits[(hits > 0) & u_bound] = 1
-    tr_hit = np.any((hits < 0) & l_tr | (hits > 0) & u_tr)
+                                     lb_total, ub_total)
+    bound_hits[(hits < 0) & orig_l] = -1
+    bound_hits[(hits > 0) & orig_u] = 1
+    tr_hit = np.any((hits < 0) & tr_l | (hits > 0) & tr_u)
 
     return cauchy_step + alpha * step_diff, bound_hits, tr_hit
 
@@ -67,19 +80,19 @@ def constrained_cauchy_step(x, cauchy_step, tr_bounds, l, u):
 
     Returns are the same as in dogleg_step function.
     """
-    l_total, u_total, l_bound, u_bound, l_tr, u_tr = find_intersection(
+    lb_total, ub_total, orig_l, orig_u, tr_l, tr_u = find_intersection(
         x, tr_bounds, l, u
     )
     bound_hits = np.zeros_like(x, dtype=int)
-    if in_bounds(cauchy_step, l_total, u_total):
+    if in_bounds(cauchy_step, lb_total, ub_total):
         return cauchy_step, bound_hits, False
 
     beta, hits = step_size_to_bound(
-        np.zeros_like(cauchy_step), cauchy_step, l_total, u_total)
+        np.zeros_like(cauchy_step), cauchy_step, lb_total, ub_total)
 
-    bound_hits[(hits < 0) & l_bound] = -1
-    bound_hits[(hits > 0) & u_bound] = 1
-    tr_hit = np.any((hits < 0) & l_tr | (hits > 0) & u_tr)
+    bound_hits[(hits < 0) & orig_l] = -1
+    bound_hits[(hits > 0) & orig_u] = 1
+    tr_hit = np.any((hits < 0) & tr_l | (hits > 0) & tr_u)
 
     return beta * cauchy_step, bound_hits, tr_hit
 
@@ -149,12 +162,12 @@ def dogbox(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
 
     termination_status = None
     while nfev < max_nfev:
-        g = J.T.dot(f)
-
         if scaling == 'jac':
             J_norm = np.linalg.norm(J, axis=0)
             with np.errstate(divide='ignore'):
                 scale = np.minimum(scale, 1 / J_norm)
+
+        g = J.T.dot(f)
 
         active_set = on_bound * g < 0
         free_set = ~active_set
