@@ -218,7 +218,7 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
         J_norm[J_norm == 0] = 1
         scale = 1 / J_norm
     else:
-        scale = 1 / np.asarray(scaling)
+        scale = 1 / scaling
 
     d_CL, jv = CL_scaling(x, g, lb, ub)
     Delta = norm(x0 / (scale * d_CL))
@@ -236,7 +236,7 @@ def trf(fun, jac, x0, lb, ub, ftol, xtol, gtol, max_nfev, scaling):
 
     termination_status = None
     while nfev < max_nfev:
-        if scaling == 'auto':
+        if scaling == 'jac':
             J_norm = np.linalg.norm(J, axis=0)
             with np.errstate(divide='ignore'):
                 scale = np.minimum(scale, 1 / J_norm)
