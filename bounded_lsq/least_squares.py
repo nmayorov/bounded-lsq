@@ -1,7 +1,8 @@
 from warnings import warn
 import numpy as np
 from numpy.linalg import norm
-from scipy.optimize import approx_derivative, leastsq, OptimizeResult
+from scipy.optimize import leastsq, OptimizeResult
+from scipy.optimize._numdiff import approx_derivative
 
 from .bounds import in_bounds, prepare_bounds
 from .trf import trf
